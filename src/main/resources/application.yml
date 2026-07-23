@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: proofchain
+  profiles:
+    default: local
+  jackson:
+    time-zone: UTC
+  mvc:
+    format:
+      date-time: iso
+  servlet:
+    multipart:
+      max-file-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}
+      max-request-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+proofchain:
+  storage:
+    root: ${PROOFCHAIN_STORAGE_ROOT:./storage}
