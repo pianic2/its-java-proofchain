@@ -1,0 +1,8 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:proofchain}
+    username: ${DB_USERNAME:proofchain}
+    password: ${DB_PASSWORD:?DB_PASSWORD environment variable must be set}
