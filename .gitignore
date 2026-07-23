@@ -1,0 +1,8 @@
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+target/
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store
