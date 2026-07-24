@@ -62,7 +62,7 @@ The canonical verification command is:
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-It formats, compiles, runs fast tests, runs Docker-backed `*IT.java` tests, packages the application, and writes reports. See [CONTRIBUTING.md](CONTRIBUTING.md) for test naming and evidence expectations.
+It checks formatting, compiles, runs fast tests, runs Docker-backed `*IT.java` tests, packages the application, and writes reports. See [CONTRIBUTING.md](CONTRIBUTING.md) for test naming and evidence expectations.
 
 ## OpenAPI and Swagger
 
