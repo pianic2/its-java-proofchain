@@ -55,7 +55,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail handleUnexpected(Exception exception, HttpServletRequest request) {
-        LOGGER.error("Unexpected error for request path {}", request.getRequestURI(), exception);
+        LOGGER.error("Unexpected error [{}] for request path {}", exception.getClass().getName(), request.getRequestURI());
+        LOGGER.debug("Unexpected error detail for request path {}", request.getRequestURI(), exception);
         return problem(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 ProblemTypes.INTERNAL_SERVER_ERROR,

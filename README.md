@@ -80,7 +80,7 @@ During Sprint 0, the OpenAPI document and Swagger UI are temporarily public at:
 
 The API documentation declares a `bearerAuth` JWT scheme, but JWT authentication and authorization are not operational until Sprint 1. No application API endpoint is opened by this temporary configuration.
 
-Errors use `application/problem+json`. For example, a missing resource returns:
+Application and controller errors use `application/problem+json` (security-layer failures such as 401/403 from Spring Security bypass the application handler and may use a different format). For example, a missing resource returns:
 
 ```json
 {
