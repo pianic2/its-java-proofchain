@@ -54,7 +54,25 @@ The canonical quality gate is:
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-Run it before opening a pull request. It owns formatting, compilation, tests, packaging, and report generation. Spotless is the formatting authority; Checkstyle and ArchUnit are intentionally absent from Sprint 0.
+Run it before opening a pull request. Maven owns formatting checks, compilation, tests, packaging, and report generation. GitHub Actions provisions the environment and invokes this command; it must not duplicate Maven lifecycle logic.
+
+## Formatting
+
+Spotless `3.6.0` is the formatting authority. Java formatting is frozen to `palantir-java-format 2.78.0`, verified under Java 25. Checkstyle and ArchUnit are intentionally absent from Sprint 0.
+
+Check formatting without changing files:
+
+```bash
+./mvnw spotless:check
+```
+
+Apply deterministic corrections only in a local development workspace:
+
+```bash
+./mvnw spotless:apply
+```
+
+CI must never execute `spotless:apply` or commit formatter-generated changes. The GitHub quality workflow must invoke only the canonical Maven quality gate.
 
 ## Evidence requirements
 
