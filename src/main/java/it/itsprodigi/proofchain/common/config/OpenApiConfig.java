@@ -18,13 +18,13 @@ public class OpenApiConfig {
                         .title("ProofChain API")
                         .version("0.0.1")
                         .description("REST API for managing the chain of custody of digital evidence.")
-                        .license(new License().name("MIT")
-                                .url("https://opensource.org/license/mit")))
-                .components(new Components().addSecuritySchemes(
-                        "bearerAuth",
-                        new SecurityScheme()
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")));
+                        .license(new License().name("MIT").url("https://opensource.org/license/mit")))
+                .components(new Components()
+                        .addSecuritySchemes(
+                                "bearerAuth",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
     }
 }

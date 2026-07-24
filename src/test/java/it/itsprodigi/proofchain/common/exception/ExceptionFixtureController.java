@@ -19,6 +19,5 @@ class ExceptionFixtureController {
     }
 
     @PostMapping("/api/test/validation")
-    void validate(@Valid @RequestBody ValidationFixtureRequest request) {
-    }
+    void validate(@Valid @RequestBody ValidationFixtureRequest request) {}
 }

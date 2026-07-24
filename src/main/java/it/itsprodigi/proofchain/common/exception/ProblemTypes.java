@@ -8,6 +8,5 @@ final class ProblemTypes {
     static final URI VALIDATION_ERROR = URI.create("https://proofchain.dev/problems/validation-error");
     static final URI INTERNAL_SERVER_ERROR = URI.create("https://proofchain.dev/problems/internal-server-error");
 
-    private ProblemTypes() {
-    }
+    private ProblemTypes() {}
 }

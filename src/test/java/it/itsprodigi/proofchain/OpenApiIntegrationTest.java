@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -48,14 +48,16 @@ class OpenApiIntegrationTest {
                         .value("REST API for managing the chain of custody of digital evidence."))
                 .andExpect(jsonPath("$.info.license.name").value("MIT"))
                 .andExpect(jsonPath("$.info.license.url").value("https://opensource.org/license/mit"))
-                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
-                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
-                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"));
+                .andExpect(
+                        jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme")
+                        .value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat")
+                        .value("JWT"));
     }
 
     @Test
     void exposesSwaggerUiAtItsDefaultPathWithoutAuthentication() throws Exception {
-        mockMvc.perform(get("/swagger-ui/index.html"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
     }
 }

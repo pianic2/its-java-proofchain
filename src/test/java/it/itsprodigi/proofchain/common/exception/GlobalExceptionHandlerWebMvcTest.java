@@ -47,8 +47,11 @@ class GlobalExceptionHandlerWebMvcTest {
                 .andExpect(jsonPath("$.detail").value("An unexpected error occurred."))
                 .andExpect(jsonPath("$.instance").value("/api/test/unexpected"))
                 .andExpect(jsonPath("$.timestamp").value(matchesPattern(UTC_TIMESTAMP_PATTERN)))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("database password"))))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("IllegalStateException"))));
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("database password"))))
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString("IllegalStateException"))));
     }
 
     @Test
@@ -71,7 +74,8 @@ class GlobalExceptionHandlerWebMvcTest {
                 .andExpect(jsonPath("$.errors[1].field").value("name"))
                 .andExpect(jsonPath("$.errors[1].code").value("NotBlank"))
                 .andExpect(jsonPath("$.errors[2]").doesNotExist())
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("do-not-return-this"))));
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("do-not-return-this"))));
     }
 
     @Test
