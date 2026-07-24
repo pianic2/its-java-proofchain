@@ -19,7 +19,7 @@ Sprint 0 establishes the build, persistence, HTTP, security, documentation, and 
 - Flyway for schema migrations
 - PostgreSQL Testcontainers for integration tests
 
-The application is organized as a feature-first modular monolith. See [ADR-001](./docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
+Java 25 is the canonical project runtime and build baseline. The application is organized as a feature-first modular monolith. See [ADR-001](./docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Create a local environment file and replace both password placeholders with the 
 cp .env.example .env
 ```
 
-`.env` is ignored and must never be committed. The application uses externalized Spring configuration; it does not read environment variables directly from application code. Available variables are documented in `.env.example` and include PostgreSQL connection values, the storage root, and the multipart size limit.
+`.env` is ignored and must never be committed. The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`.
 
 ## Database startup
 
@@ -62,7 +62,9 @@ The canonical verification command is:
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-It checks formatting, compiles, runs fast tests, runs Docker-backed `*IT.java` tests, packages the application, and writes reports. See [CONTRIBUTING.md](CONTRIBUTING.md) for test naming and evidence expectations.
+Maven owns quality orchestration: formatting checks, compilation, fast tests, Docker-backed `*IT.java` tests, packaging, and report generation. GitHub Actions only provisions Temurin Java 25 and the runner environment, then invokes the same Maven command; CI never runs `spotless:apply` or modifies source files.
+
+Java formatting is frozen to Spotless `3.6.0` with `palantir-java-format 2.78.0`, verified under Java 25. See [CONTRIBUTING.md](CONTRIBUTING.md) for test naming, local formatting commands, and evidence expectations.
 
 ## OpenAPI and Swagger
 
