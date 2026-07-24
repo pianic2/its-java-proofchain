@@ -99,7 +99,6 @@
                         <format>
                             <includes>
                                 <include>pom.xml</include>
-                                <include>*.md</include>
                                 <include>**/*.md</include>
                                 <include>.github/**/*.yml</include>
                                 <include>.github/**/*.yaml</include>
