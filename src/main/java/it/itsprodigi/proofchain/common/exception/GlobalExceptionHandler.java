@@ -27,8 +27,7 @@ public class GlobalExceptionHandler {
                 ProblemTypes.RESOURCE_NOT_FOUND,
                 "Resource not found",
                 exception.getMessage(),
-                request
-        );
+                request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -47,23 +46,24 @@ public class GlobalExceptionHandler {
                 ProblemTypes.VALIDATION_ERROR,
                 "Validation failed",
                 "One or more request fields are invalid.",
-                request
-        );
+                request);
         problem.setProperty("errors", errors);
         return problem;
     }
 
     @ExceptionHandler(Exception.class)
     ProblemDetail handleUnexpected(Exception exception, HttpServletRequest request) {
-        LOGGER.error("Unexpected error [{}] for request path {}", exception.getClass().getName(), request.getRequestURI());
+        LOGGER.error(
+                "Unexpected error [{}] for request path {}",
+                exception.getClass().getName(),
+                request.getRequestURI());
         LOGGER.debug("Unexpected error detail for request path {}", request.getRequestURI(), exception);
         return problem(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 ProblemTypes.INTERNAL_SERVER_ERROR,
                 "Internal server error",
                 "An unexpected error occurred.",
-                request
-        );
+                request);
     }
 
     private ValidationError toValidationError(FieldError error) {
@@ -71,12 +71,7 @@ public class GlobalExceptionHandler {
     }
 
     private ProblemDetail problem(
-            HttpStatus status,
-            URI type,
-            String title,
-            String detail,
-            HttpServletRequest request
-    ) {
+            HttpStatus status, URI type, String title, String detail, HttpServletRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setType(type);
         problem.setTitle(title);

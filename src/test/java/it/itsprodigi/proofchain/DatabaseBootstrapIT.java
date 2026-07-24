@@ -22,13 +22,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class DatabaseBootstrapIT {
 
     @Container
-    static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:18.4-trixie")
-                    .withDatabaseName("proofchain_test")
-                    .withUsername("proofchain_test")
-                    .withPassword("proofchain_test");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.4-trixie")
+            .withDatabaseName("proofchain_test")
+            .withUsername("proofchain_test")
+            .withPassword("proofchain_test");
 
-    @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @DynamicPropertySource
     static void configureDataSource(DynamicPropertyRegistry registry) {
@@ -39,17 +39,14 @@ class DatabaseBootstrapIT {
 
     @Test
     void flywayBootstrapsSchemaHistoryOnAnEmptyPostgreSqlDatabase() {
-        Boolean schemaHistoryExists =
-                jdbcTemplate.queryForObject(
-                        """
+        Boolean schemaHistoryExists = jdbcTemplate.queryForObject("""
                         SELECT EXISTS (
                             SELECT 1
                             FROM pg_catalog.pg_tables
                             WHERE schemaname = 'public'
                               AND tablename = 'flyway_schema_history'
                         )
-                        """,
-                        Boolean.class);
+                        """, Boolean.class);
 
         assertThat(schemaHistoryExists).isTrue();
     }
