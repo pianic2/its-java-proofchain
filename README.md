@@ -61,13 +61,15 @@ If those values diverge, the application will not reach the Compose database. Th
 
 ## Tests
 
-`DatabaseBootstrapIntegrationTest` starts `postgres:18.4-trixie` through Testcontainers and does not use the Compose service. It verifies that Flyway creates `flyway_schema_history` on an empty PostgreSQL database.
+`DatabaseBootstrapIT` starts `postgres:18.4-trixie` through Testcontainers and does not use the Compose service. It verifies that Flyway creates `flyway_schema_history` on an empty PostgreSQL database.
 
 Run the canonical verification command:
 
 ```bash
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the quality gate, test naming, report locations, and formatting workflow.
 
 ## API documentation and error responses
 
