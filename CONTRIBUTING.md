@@ -1,53 +1,95 @@
 # Contributing to ProofChain
 
-## Quality gate
+## Branch naming
 
-The single quality command is:
+Use one branch for each Jira subtask:
+
+```text
+ijpc-<issue-number>-<short-kebab-description>
+```
+
+Example: `ijpc-130-foundation-governance`.
+
+## Commit naming
+
+Use Conventional Commits with the Jira key in the scope:
+
+```text
+<type>(IJPC-<number>): <imperative description>
+```
+
+Allowed common types are `feat`, `fix`, `docs`, `test`, `refactor`, `build`, `ci`, and `chore`.
+
+Example: `docs(IJPC-130): record foundation decisions`.
+
+## Pull request naming
+
+Use:
+
+```text
+IJPC-<number> — <issue summary>
+```
+
+Example: `IJPC-130 — Record foundation decisions and contribution rules`.
+
+Every pull request uses the repository template in `.github/pull_request_template.md` and links its technical evidence.
+
+## Work-unit rule
+
+One subtask produces one branch and one pull request. Only immediate corrections within that pull request are exceptions. Do not merge a pull request as part of an implementation task.
+
+## Project language and scope control
+
+All repository files, branch names, commits, pull requests, Jira technical comments, and other canonical project artifacts are written in English. Conversation with the project owner may remain in Italian.
+
+Implement only the approved Jira scope. Do not add future functionality, unrelated refactors, new governance documents, dependencies, plugins, frameworks, or configuration. Keep technical decisions and implementation evidence in GitHub; Jira owns work management; Confluence is limited to concise monitoring and professor-facing review material.
+
+## Testing expectations
+
+Use `*Test.java` for fast unit and MVC tests and `*IT.java` for integration tests. Maven Surefire runs the former and Failsafe runs the latter. Integration tests provision their own PostgreSQL through Testcontainers and do not use the local Compose database.
+
+The canonical quality gate is:
 
 ```bash
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-Run it before opening a pull request. Maven owns the quality lifecycle locally and in GitHub Actions: it checks formatting, compiles, runs tests, packages the application, and writes reports. GitHub Actions only provides Java 25 and Docker, then invokes the same command.
+Run it before opening a pull request. It owns formatting, compilation, tests, packaging, and report generation. Spotless is the formatting authority; Checkstyle and ArchUnit are intentionally absent from Sprint 0.
 
-## Test naming
+## Evidence requirements
 
-Use the standard Maven test names, such as `*Test.java`, for fast unit and MVC tests. Maven Surefire runs these tests.
+Each pull request must identify the changed files, tests and commands run, rendered documentation links, relevant risks, and any validation that remains manual. Do not claim Copilot review or final human validation until those activities have actually occurred.
 
-Use `*IT.java` exclusively for integration tests. Maven Failsafe runs these tests during the integration-test and verify phases. Do not use `IntegrationTest` in a class name. This separation keeps Docker-backed Testcontainers checks out of the fast test phase and prevents a test from running twice.
+## Definition of Ready
 
-`DatabaseBootstrapIT` is the baseline integration test. It starts its own `postgres:18.4-trixie` container through Testcontainers and never uses the local Docker Compose database.
+A subtask is Ready only when it has an objective, scope, out-of-scope boundaries, dependencies, frozen technical decisions, acceptance criteria, required tests, required evidence, completion commands, and no unresolved blocker.
 
-## Formatting
+## Definition of Done
 
-Spotless checks the Java sources, root Markdown files, the Maven POM, and GitHub Actions YAML during Maven's validate phase. Java formatting is frozen to `palantir-java-format 2.78.0`, verified by the Java 25 CI runner.
+A subtask is Done only when its approved scope is implemented, boundaries are respected, tests and `./mvnw clean verify` pass, no secret or generated local file is tracked, documentation is current, pull request review is complete, implementation evidence is linked in Jira, final human validation is complete, and the changes are merged into `main`.
 
-Check formatting only:
+## AI-assisted workflow
 
-```bash
-./mvnw spotless:check
-```
+Planning may use GPT-5.6 Sol or an equivalent high-reasoning model. Implementation may use Claude Sonnet 5 or a superior implementation model. Review is performed by manual GitHub Copilot review agents. The project owner performs final validation and approval. AI agents may propose, implement, and review changes, but must never claim final human approval.
 
-Apply safe automatic corrections locally:
+## Source-of-truth responsibilities
 
-```bash
-./mvnw spotless:apply
-```
+### GitHub
 
-Never commit a CI-generated correction: CI runs only `spotless:check` and fails if formatting is not compliant.
+GitHub owns source code, tests, Maven and CI configuration, README, contribution rules, ADRs, pull requests, and technical evidence.
+
+### Jira
+
+Jira owns work scope, workflow state, dependencies, acceptance criteria, blockers, and evidence links.
+
+### Confluence
+
+Confluence owns concise monitoring, navigation, and professor-facing review material. Extended technical content must not be duplicated there.
+
+## Secret handling
+
+Never commit `.env` files, passwords, credentials, access keys, tokens, or unredacted sensitive logs. Use placeholders for local configuration and keep secrets in the approved local or CI secret store. Review documentation and pull request evidence for accidental secret disclosure before publishing.
 
 ## Reports
 
-After a successful `clean verify`, inspect:
-
-- `target/surefire-reports/` for fast-test reports.
-- `target/failsafe-reports/` for integration-test reports.
-- `target/site/jacoco/index.html` for coverage.
-
-JaCoCo is report-only in Sprint 0. There is no blocking coverage percentage because domain behaviour has not been implemented yet. A threshold above 50% will be introduced when there is sufficient domain logic to make it meaningful.
-
-## CI scope
-
-The GitHub Actions Quality workflow runs for pull requests and pushes to `main`. It has read-only repository permissions, a 15-minute timeout, cancels obsolete runs for the same ref, and uploads the JaCoCo, Surefire, and Failsafe reports for seven days.
-
-Checkstyle and ArchUnit are intentionally absent from Sprint 0. Spotless already owns deterministic formatting; architecture rules will be introduced only when concrete modular boundaries can be enforced.
+After a successful quality gate, inspect `target/surefire-reports/`, `target/failsafe-reports/`, and `target/site/jacoco/index.html`. JaCoCo is report-only in Sprint 0; no coverage threshold is enforced before meaningful domain logic exists.

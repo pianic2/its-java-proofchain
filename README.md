@@ -1,116 +1,95 @@
 # ProofChain
 
-ProofChain is a Spring Boot modular monolith. Its local database is PostgreSQL, while integration tests provision an independent PostgreSQL instance through Testcontainers.
+## Project overview
+
+ProofChain is a time-bounded ITS project implemented as a Spring Boot modular monolith. It provides the foundation for recording evidence and custody events with a clear, reviewable technical baseline.
+
+## MVP boundaries
+
+Sprint 0 establishes the build, persistence, HTTP, security, documentation, and quality foundations. Domain use cases, authentication and authorization, file processing, and production operations are delivered only by later approved subtasks.
+
+## Technology stack
+
+- Java 25 LTS
+- Spring Boot 4.0.7
+- Maven Wrapper 3.9.9
+- Spring MVC through `spring-boot-starter-webmvc`
+- OpenAPI through `springdoc-openapi-starter-webmvc-ui:3.0.2`
+- PostgreSQL 18.4 through Docker Compose
+- Flyway for schema migrations
+- PostgreSQL Testcontainers for integration tests
+
+The application is organized as a feature-first modular monolith. See [ADR-001](docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
 
 ## Prerequisites
 
-Use Java 25 and Docker Engine with Docker Compose v2 support. The local baseline is Docker Engine 26.1.5 and Docker Compose 2.26.1; Docker must be able to run `postgres:18.4-trixie`.
+Install Java 25 and Docker Engine with Docker Compose v2 support. Docker must be able to run `postgres:18.4-trixie`.
 
-## Local configuration
+## Local setup
 
-Create a local environment file and replace the two password placeholders with the same local-only value:
+Create a local environment file and replace both password placeholders with the same local-only value:
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` is ignored and must never be committed. The approved environment variables are:
+`.env` is ignored and must never be committed. The application uses externalized Spring configuration; it does not read environment variables directly from application code. Available variables are documented in `.env.example` and include PostgreSQL connection values, the storage root, and the multipart size limit.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `POSTGRES_DB` | `proofchain` | Database initialized by PostgreSQL. |
-| `POSTGRES_USER` | `proofchain` | Database user initialized by PostgreSQL. |
-| `POSTGRES_PASSWORD` | Required | Local PostgreSQL password. |
-| `POSTGRES_PORT` | `5432` | PostgreSQL host port published by Compose. |
-| `DB_HOST` | `localhost` | Host used by the local Spring profile. |
-| `DB_PORT` | `5432` | Port used by the local Spring profile. |
-| `DB_NAME` | `proofchain` | Database used by the local Spring profile. |
-| `DB_USERNAME` | `proofchain` | Database user used by the local Spring profile. |
-| `DB_PASSWORD` | Required | Database password used by the local Spring profile. |
-| `PROOFCHAIN_STORAGE_ROOT` | `./storage` | Future filesystem storage root. |
-| `PROOFCHAIN_MAX_FILE_SIZE` | `50MB` | Multipart file and request limit. |
+## Database startup
 
-Spring defaults to the `local` profile. Configuration uses Spring placeholders only; application code does not read environment variables directly.
-
-## Database lifecycle
-
-Start, inspect, view logs, stop, or destructively reset the local PostgreSQL service:
+Start and inspect the local PostgreSQL service with:
 
 ```bash
 docker compose up -d
 docker compose ps
-docker compose logs --no-color postgres
-docker compose down --remove-orphans
-docker compose down -v --remove-orphans
 ```
 
-The final command removes the named `proofchain-postgres-data` volume and all local database data.
+Stop it with `docker compose down --remove-orphans`. Use `docker compose down -v --remove-orphans` only when intentionally removing local database data. Flyway owns the schema lifecycle and starts with `baseline-on-migrate=false`; do not use Hibernate DDL generation or ad-hoc schema changes.
 
-Compose initializes infrastructure only. Flyway owns the schema lifecycle and starts against an empty database with `baseline-on-migrate=false`; it creates `flyway_schema_history` automatically. Do not add ad-hoc schema changes or Hibernate DDL generation. The first domain migration belongs to Sprint 1.
+## Application startup
 
-## Ports
+The `local` Spring profile is enabled by default. After PostgreSQL is running, start the application with:
 
-Compose deliberately has no automatic port fallback. If the configured host port is already occupied, Compose fails. Resolve it by stopping the conflicting service, or explicitly configure the same alternative port in both settings:
-
-```text
-POSTGRES_PORT=5433
-DB_PORT=5433
+```bash
+./mvnw spring-boot:run
 ```
 
-If those values diverge, the application will not reach the Compose database. The actionable diagnosis is: `Port <configured port> is already in use. Stop the conflicting service or explicitly set POSTGRES_PORT and DB_PORT to the same alternative host port in .env.`
+## Tests and quality gate
 
-## Tests
-
-`DatabaseBootstrapIT` starts `postgres:18.4-trixie` through Testcontainers and does not use the Compose service. It verifies that Flyway creates `flyway_schema_history` on an empty PostgreSQL database.
-
-Run the canonical verification command:
+The canonical verification command is:
 
 ```bash
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the quality gate, test naming, report locations, and formatting workflow.
+It formats, compiles, runs fast tests, runs Docker-backed `*IT.java` tests, packages the application, and writes reports. See [CONTRIBUTING.md](CONTRIBUTING.md) for test naming and evidence expectations.
 
-## API documentation and error responses
+## OpenAPI and Swagger
 
-During Sprint 0, the OpenAPI document and Swagger UI are temporarily public at:
+During Sprint 0, the generated OpenAPI document and Swagger UI are available at `/v3/api-docs` and `/swagger-ui/index.html`. JWT authentication is documented but is not operational until its approved implementation task; no application API endpoint is opened by the temporary configuration.
+
+Application errors use the Spring Problem Details media type `application/problem+json`. Security-layer failures may use a different response format.
+
+## Project structure
 
 ```text
-/v3/api-docs
-/swagger-ui/index.html
+src/main/java/it/itsprodigi/proofchain/
+├── auth/                 # authentication feature boundary
+├── custodycase/          # custody case feature boundary
+├── custodyevent/         # custody event feature boundary
+├── evidence/             # evidence feature boundary
+├── operator/             # operator feature boundary
+└── common/               # shared configuration and cross-cutting contracts
 ```
 
-The API documentation declares a `bearerAuth` JWT scheme, but JWT authentication and authorization are not operational until Sprint 1. No application API endpoint is opened by this temporary configuration.
+Database migrations live under `src/main/resources/db/migration`. Tests mirror the application package structure; integration tests use the `*IT.java` suffix.
 
-Application and controller errors use `application/problem+json` (security-layer failures such as 401/403 from Spring Security bypass the application handler and may use a different format). For example, a missing resource returns:
+## Documentation
 
-```json
-{
-  "type": "https://proofchain.dev/problems/resource-not-found",
-  "title": "Resource not found",
-  "status": 404,
-  "detail": "The requested resource was not found.",
-  "instance": "/api/example",
-  "timestamp": "2026-07-24T12:00:00Z"
-}
-```
+- [Contributing rules](CONTRIBUTING.md)
+- [ADR-001 — Foundation baseline](docs/adr/ADR-001-foundation-baseline.md)
+- [MIT license](LICENSE)
 
-Validation failures include deterministic field details and never include rejected values:
+## License
 
-```json
-{
-  "type": "https://proofchain.dev/problems/validation-error",
-  "title": "Validation failed",
-  "status": 400,
-  "detail": "One or more request fields are invalid.",
-  "instance": "/api/example",
-  "timestamp": "2026-07-24T12:00:00Z",
-  "errors": [
-    {
-      "field": "name",
-      "message": "must not be blank",
-      "code": "NotBlank"
-    }
-  ]
-}
-```
+ProofChain is distributed under the [MIT License](LICENSE).
