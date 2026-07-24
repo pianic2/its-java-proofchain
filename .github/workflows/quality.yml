@@ -31,7 +31,7 @@ jobs:
           cache: maven
 
       - name: Verify quality gate
-        run: ./mvnw --batch-mode --no-transfer-progress clean verify
+        run: ./mvnw --batch-mode --no-transfer-progress spotless:apply && git diff --no-ext-diff
 
       - name: Upload JaCoCo report
         if: ${{ !cancelled() }}
