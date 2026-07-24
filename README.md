@@ -19,7 +19,7 @@ Sprint 0 establishes the build, persistence, HTTP, security, documentation, and 
 - Flyway for schema migrations
 - PostgreSQL Testcontainers for integration tests
 
-The application is organized as a feature-first modular monolith. See [ADR-001](docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
+The application is organized as a feature-first modular monolith. See [ADR-001](./docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
 
 ## Prerequisites
 
@@ -86,10 +86,10 @@ Database migrations live under `src/main/resources/db/migration`. Tests mirror t
 
 ## Documentation
 
-- [Contributing rules](CONTRIBUTING.md)
-- [ADR-001 — Foundation baseline](docs/adr/ADR-001-foundation-baseline.md)
-- [MIT license](LICENSE)
+- [Contributing rules](./CONTRIBUTING.md)
+- [ADR-001 — Foundation baseline](./docs/adr/ADR-001-foundation-baseline.md)
+- [MIT license](./LICENSE)
 
 ## License
 
-ProofChain is distributed under the [MIT License](LICENSE).
+ProofChain is distributed under the [MIT License](./LICENSE).
