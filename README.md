@@ -10,7 +10,7 @@ Sprint 0 establishes the build, persistence, HTTP, security, documentation, and 
 
 ## Technology stack
 
-- Java 25 LTS
+- Java 25
 - Spring Boot 4.0.7
 - Maven Wrapper 3.9.9
 - Spring MVC through `spring-boot-starter-webmvc`

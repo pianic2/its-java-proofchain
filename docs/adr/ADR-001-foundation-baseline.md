@@ -10,7 +10,7 @@ ProofChain is a time-bounded ITS project, not a long-running platform. It needs 
 
 ## Decision
 
-- Use Java 25 LTS, Spring Boot 4.0.7, and Maven Wrapper 3.9.9.
+- Use Java 25, Spring Boot 4.0.7, and Maven Wrapper 3.9.9.
 - Use `spring-boot-starter-webmvc` for the HTTP layer and `springdoc-openapi-starter-webmvc-ui:3.0.2` for OpenAPI documentation.
 - Organize the application as a modular monolith with feature-first packages.
 - Use PostgreSQL `18.4-trixie` for local development and PostgreSQL Testcontainers for integration tests.
