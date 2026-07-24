@@ -68,3 +68,47 @@ Run the canonical verification command:
 ```bash
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
+
+## API documentation and error responses
+
+During Sprint 0, the OpenAPI document and Swagger UI are temporarily public at:
+
+```text
+/v3/api-docs
+/swagger-ui/index.html
+```
+
+The API documentation declares a `bearerAuth` JWT scheme, but JWT authentication and authorization are not operational until Sprint 1. No application API endpoint is opened by this temporary configuration.
+
+Errors use `application/problem+json`. For example, a missing resource returns:
+
+```json
+{
+  "type": "https://proofchain.dev/problems/resource-not-found",
+  "title": "Resource not found",
+  "status": 404,
+  "detail": "The requested resource was not found.",
+  "instance": "/api/example",
+  "timestamp": "2026-07-24T12:00:00Z"
+}
+```
+
+Validation failures include deterministic field details and never include rejected values:
+
+```json
+{
+  "type": "https://proofchain.dev/problems/validation-error",
+  "title": "Validation failed",
+  "status": 400,
+  "detail": "One or more request fields are invalid.",
+  "instance": "/api/example",
+  "timestamp": "2026-07-24T12:00:00Z",
+  "errors": [
+    {
+      "field": "name",
+      "message": "must not be blank",
+      "code": "NotBlank"
+    }
+  ]
+}
+```
