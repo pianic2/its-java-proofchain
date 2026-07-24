@@ -91,7 +91,6 @@
                 <version>3.6.0</version>
                 <configuration>
                     <java>
-                        <target>src/main/java/**/*.java,src/test/java/**/*.java</target>
                         <palantirJavaFormat>
                             <version>2.78.0</version>
                         </palantirJavaFormat>
