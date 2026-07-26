@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.validation.Validation;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,7 @@ class OperatorTest {
         assertThat(operator.getFirstName()).isEqualTo("Jane");
         assertThat(operator.getLastName()).isEqualTo("DOE");
         assertThat(operator.getCreatedAt()).isEqualTo(operator.getUpdatedAt());
+        assertThat(operator.getCreatedAt()).isEqualTo(operator.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
         assertThat(operator.getVersion()).isZero();
         assertThat(operator.getStatus()).isEqualTo(OperatorStatus.ACTIVE);
     }
@@ -67,8 +69,7 @@ class OperatorTest {
 
         try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
             assertThat(validatorFactory.getValidator().validate(operator))
-                    .anyMatch(
-                            violation -> violation.getPropertyPath().toString().equals("email"));
+                    .anyMatch(violation -> violation.getPropertyPath().toString().equals("email"));
         }
     }
 
@@ -86,27 +87,27 @@ class OperatorTest {
     }
 
     @Test
-    void everyDomainUpdateRefreshesUpdatedAt() {
+    void everyDomainUpdateRefreshesUpdatedAtAtDatabasePrecision() {
         Operator operator = operator("valid", "valid@example.com", "Jane", "Doe");
 
         Instant previous = operator.getUpdatedAt();
         operator.changeUsername("changed");
-        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertTimestampAdvancedAtMicrosecondPrecision(operator, previous);
         previous = operator.getUpdatedAt();
         operator.changeEmail("changed@example.com");
-        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertTimestampAdvancedAtMicrosecondPrecision(operator, previous);
         previous = operator.getUpdatedAt();
         operator.changePasswordHash("$2b$12$" + "x".repeat(53));
-        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertTimestampAdvancedAtMicrosecondPrecision(operator, previous);
         previous = operator.getUpdatedAt();
         operator.changeName("Janet", "Smith");
-        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertTimestampAdvancedAtMicrosecondPrecision(operator, previous);
         previous = operator.getUpdatedAt();
         operator.changeRole(OperatorRole.AUDITOR);
-        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertTimestampAdvancedAtMicrosecondPrecision(operator, previous);
         previous = operator.getUpdatedAt();
         operator.changeStatus(OperatorStatus.SUSPENDED);
-        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertTimestampAdvancedAtMicrosecondPrecision(operator, previous);
     }
 
     @Test
@@ -114,6 +115,11 @@ class OperatorTest {
         Operator operator = operator("valid", "valid@example.com", "Jane", "Doe");
 
         assertThat(operator.toString()).doesNotContain(BCRYPT_HASH).doesNotContain("passwordHash");
+    }
+
+    private static void assertTimestampAdvancedAtMicrosecondPrecision(Operator operator, Instant previous) {
+        assertThat(operator.getUpdatedAt()).isAfter(previous);
+        assertThat(operator.getUpdatedAt()).isEqualTo(operator.getUpdatedAt().truncatedTo(ChronoUnit.MICROS));
     }
 
     private static Operator operator(String username, String email, String firstName, String lastName) {
