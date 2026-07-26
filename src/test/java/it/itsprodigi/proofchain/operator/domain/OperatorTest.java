@@ -69,7 +69,8 @@ class OperatorTest {
 
         try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
             assertThat(validatorFactory.getValidator().validate(operator))
-                    .anyMatch(violation -> violation.getPropertyPath().toString().equals("email"));
+                    .anyMatch(
+                            violation -> violation.getPropertyPath().toString().equals("email"));
         }
     }
 
