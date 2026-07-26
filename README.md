@@ -35,7 +35,15 @@ Create a local environment file and replace both password placeholders with the 
 cp .env.example .env
 ```
 
-`.env` is ignored and must never be committed. The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`.
+`.env` is ignored and must never be committed. Docker Compose reads this file automatically, while the application requires its variables to be exported in the shell. Before starting the application, load the file with:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`.
 
 ## Database startup
 
