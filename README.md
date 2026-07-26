@@ -21,6 +21,8 @@ Sprint 0 establishes the build, persistence, HTTP, security, documentation, and 
 
 Java 25 is the canonical project runtime and build baseline. The application is organized as a feature-first modular monolith. See [ADR-001](./docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
 
+Persisted domain timestamps use the same microsecond precision supported by PostgreSQL. See [ADR-002](./docs/adr/ADR-002-database-aligned-timestamp-precision.md) for the precision and monotonicity contract.
+
 ## Prerequisites
 
 Install Java 25 and Docker Engine with Docker Compose v2 support. Docker must be able to run `postgres:18.4-trixie`.
@@ -90,6 +92,7 @@ Database migrations live under `src/main/resources/db/migration`. Tests mirror t
 
 - [Contributing rules](./CONTRIBUTING.md)
 - [ADR-001 — Foundation baseline](./docs/adr/ADR-001-foundation-baseline.md)
+- [ADR-002 — Database-aligned timestamp precision](./docs/adr/ADR-002-database-aligned-timestamp-precision.md)
 - [MIT license](./LICENSE)
 
 ## License
