@@ -5,19 +5,19 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
+@Testcontainers
 public abstract class PostgreSqlIntegrationTest {
 
+    @Container
     protected static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.4-trixie")
             .withDatabaseName("proofchain_test")
             .withUsername("proofchain_test")
             .withPassword("proofchain_test");
-
-    static {
-        POSTGRES.start();
-    }
 
     @DynamicPropertySource
     static void configureDataSource(DynamicPropertyRegistry registry) {
