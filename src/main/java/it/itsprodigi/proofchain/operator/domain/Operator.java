@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -89,7 +90,7 @@ public class Operator {
         this.lastName = validName(lastName, "lastName");
         this.role = Objects.requireNonNull(role, "role must not be null");
         status = OperatorStatus.ACTIVE;
-        Instant now = Instant.now();
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         createdAt = now;
         updatedAt = now;
         version = 0L;
@@ -242,7 +243,9 @@ public class Operator {
     }
 
     private void touch() {
-        Instant now = Instant.now();
-        updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1);
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        Instant current = updatedAt.truncatedTo(ChronoUnit.MICROS);
+
+        updatedAt = now.isAfter(current) ? now : current.plus(1, ChronoUnit.MICROS);
     }
 }
