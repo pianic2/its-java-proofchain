@@ -12,10 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = ExceptionFixtureController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(ProblemDetailFactory.class)
 class GlobalExceptionHandlerWebMvcTest {
 
     private static final String UTC_TIMESTAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2}T.*Z";
