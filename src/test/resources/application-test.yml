@@ -6,3 +6,6 @@ spring:
     url: jdbc:postgresql://127.0.0.1:1/proofchain
     username: test
     password: test
+proofchain:
+  password:
+    bcrypt-strength: 4

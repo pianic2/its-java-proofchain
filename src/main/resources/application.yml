@@ -28,3 +28,13 @@ spring:
 proofchain:
   storage:
     root: ${PROOFCHAIN_STORAGE_ROOT:./storage}
+  password:
+    min-length: ${PROOFCHAIN_PASSWORD_MIN_LENGTH:12}
+    max-length: ${PROOFCHAIN_PASSWORD_MAX_LENGTH:128}
+    bcrypt-strength: ${PROOFCHAIN_BCRYPT_STRENGTH:12}
+  bootstrap:
+    admin:
+      enabled: ${PROOFCHAIN_BOOTSTRAP_ADMIN_ENABLED:false}
+      username: ${PROOFCHAIN_BOOTSTRAP_ADMIN_USERNAME:}
+      email: ${PROOFCHAIN_BOOTSTRAP_ADMIN_EMAIL:}
+      password: ${PROOFCHAIN_BOOTSTRAP_ADMIN_PASSWORD:}
