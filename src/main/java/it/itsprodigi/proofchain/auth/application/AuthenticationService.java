@@ -33,15 +33,13 @@ public class AuthenticationService {
     public LoginResponse login(LoginRequest request) {
         String username = OperatorNormalizer.normalizeUsername(request.username());
         Operator operator = operators.findByUsername(username).orElse(null);
-        boolean passwordTooLong = request.password().getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_PASSWORD_BYTES;
+        boolean passwordTooLong =
+                request.password().getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_PASSWORD_BYTES;
         String candidatePassword = passwordTooLong ? DUMMY_PASSWORD : request.password();
         String expectedHash = operator == null || passwordTooLong ? dummyPasswordHash : operator.getPasswordHash();
         boolean passwordMatches = passwordEncoder.matches(candidatePassword, expectedHash);
 
-        if (operator == null
-                || passwordTooLong
-                || operator.getStatus() != OperatorStatus.ACTIVE
-                || !passwordMatches) {
+        if (operator == null || passwordTooLong || operator.getStatus() != OperatorStatus.ACTIVE || !passwordMatches) {
             throw new InvalidCredentialsException();
         }
 
