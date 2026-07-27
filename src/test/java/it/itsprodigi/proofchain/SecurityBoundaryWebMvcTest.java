@@ -73,7 +73,7 @@ class SecurityBoundaryWebMvcTest extends PostgreSqlIntegrationTest {
                                 .filter(JwtAuthenticationFilter.class::isInstance)
                                 .count())
                 .isEqualTo(1);
-        mockMvc.perform(get("/api/v1/auth/login")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/auth/login")).andExpect(status().isMethodNotAllowed());
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
     }
