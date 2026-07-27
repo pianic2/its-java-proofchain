@@ -37,21 +37,24 @@ public class AuthController {
     @ApiResponse(
             responseCode = "200",
             description = "Login successful",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = LoginResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = LoginResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                    schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Invalid credentials",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                    schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
@@ -67,15 +70,17 @@ public class AuthController {
     @ApiResponse(
             responseCode = "200",
             description = "Current operator",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = CurrentOperatorResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = CurrentOperatorResponse.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Authentication required or invalid token",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                    schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public CurrentOperatorResponse me(@AuthenticationPrincipal AuthenticatedOperator operator) {
         return CurrentOperatorResponse.from(operator);
     }
