@@ -59,7 +59,8 @@ class AuthenticationFlowIT extends PostgreSqlIntegrationTest {
 
     @Test
     void activeOperatorCanLoginAndUseTheIssuedTokenForMe() throws Exception {
-        assertThat(passwordEncoder.matches("correct-password", operator.getPasswordHash())).isTrue();
+        assertThat(passwordEncoder.matches("correct-password", operator.getPasswordHash()))
+                .isTrue();
 
         var login = mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -72,7 +73,10 @@ class AuthenticationFlowIT extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.expiresInSeconds").value(1800))
                 .andReturn();
 
-        String token = jsonMapper.readTree(login.getResponse().getContentAsString()).get("accessToken").asText();
+        String token = jsonMapper
+                .readTree(login.getResponse().getContentAsString())
+                .get("accessToken")
+                .asText();
         var claims = tokens.validate(token);
         assertThat(claims.operatorId()).isEqualTo(operator.getId());
         assertThat(claims.username()).isEqualTo("admin");
