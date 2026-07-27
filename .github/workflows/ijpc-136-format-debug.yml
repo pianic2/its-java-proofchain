@@ -1,9 +1,9 @@
 name: IJPC-136 format debug
 
 on:
-  push:
+  pull_request:
     branches:
-      - tmp-ijpc-136-format
+      - main
 
 jobs:
   format:
