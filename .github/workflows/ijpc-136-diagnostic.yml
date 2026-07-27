@@ -1,0 +1,39 @@
+name: IJPC-136 diagnostic
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Temurin Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Apply formatter
+        run: ./mvnw --batch-mode --no-transfer-progress spotless:apply
+      - name: Capture formatter patch
+        run: git diff --binary > formatted.patch
+      - name: Verify formatted tree
+        run: |
+          set +e
+          ./mvnw --batch-mode --no-transfer-progress clean verify > diagnostic.log 2>&1
+          status=$?
+          cat diagnostic.log
+          exit $status
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ijpc-136-diagnostic
+          path: |
+            formatted.patch
+            diagnostic.log
+          if-no-files-found: error
