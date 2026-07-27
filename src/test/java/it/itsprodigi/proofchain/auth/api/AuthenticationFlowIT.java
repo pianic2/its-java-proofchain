@@ -100,11 +100,11 @@ class AuthenticationFlowIT extends PostgreSqlIntegrationTest {
     @Test
     void suspendedAndDisabledOperatorsCannotLogin() throws Exception {
         operator.changeStatus(OperatorStatus.SUSPENDED);
-        operators.saveAndFlush(operator);
+        operator = operators.saveAndFlush(operator);
         assertInvalidCredentials("admin", "correct-password");
 
         operator.changeStatus(OperatorStatus.DISABLED);
-        operators.saveAndFlush(operator);
+        operator = operators.saveAndFlush(operator);
         assertInvalidCredentials("admin", "correct-password");
     }
 
