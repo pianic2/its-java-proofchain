@@ -21,12 +21,6 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class SecurityConfig {
     @Bean
-    JwtAuthenticationFilter jwtAuthenticationFilter(
-            JwtTokenService tokens, OperatorRepository operators, SecurityProblemWriter writer) {
-        return new JwtAuthenticationFilter(tokens, operators, writer);
-    }
-
-    @Bean
     ProblemAuthenticationEntryPoint problemAuthenticationEntryPoint(SecurityProblemWriter writer) {
         return new ProblemAuthenticationEntryPoint(writer);
     }
@@ -39,10 +33,13 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationFilter jwt,
+            JwtTokenService tokens,
+            OperatorRepository operators,
+            SecurityProblemWriter writer,
             ProblemAuthenticationEntryPoint entryPoint,
             ProblemAccessDeniedHandler deniedHandler)
             throws Exception {
+        JwtAuthenticationFilter jwt = new JwtAuthenticationFilter(tokens, operators, writer);
         return http.csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())

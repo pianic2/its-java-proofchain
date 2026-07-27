@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.jsonwebtoken.Jwts;
 import it.itsprodigi.proofchain.auth.application.JwtTokenService;
+import it.itsprodigi.proofchain.auth.security.JwtAuthenticationFilter;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
 import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
@@ -17,8 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -40,6 +44,12 @@ class SecurityBoundaryWebMvcTest extends PostgreSqlIntegrationTest {
     @Autowired
     OperatorRepository repository;
 
+    @Autowired
+    ApplicationContext applicationContext;
+
+    @Autowired
+    SecurityFilterChain securityFilterChain;
+
     Operator operator;
 
     @BeforeEach
@@ -56,6 +66,13 @@ class SecurityBoundaryWebMvcTest extends PostgreSqlIntegrationTest {
 
     @Test
     void publicPathsAndLoginAreNotAuthenticated() throws Exception {
+        assertThat(applicationContext.getBeansOfType(JwtAuthenticationFilter.class))
+                .isEmpty();
+        assertThat(((DefaultSecurityFilterChain) securityFilterChain)
+                        .getFilters().stream()
+                                .filter(JwtAuthenticationFilter.class::isInstance)
+                                .count())
+                .isEqualTo(1);
         mockMvc.perform(get("/api/v1/auth/login")).andExpect(status().isNotFound());
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
