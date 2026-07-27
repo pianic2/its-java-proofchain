@@ -10,6 +10,7 @@ import it.itsprodigi.proofchain.auth.application.AuthenticationService;
 import it.itsprodigi.proofchain.auth.security.AuthenticatedOperator;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +61,11 @@ public class AuthController {
                 .cacheControl(CacheControl.noStore())
                 .header("Pragma", "no-cache")
                 .body(authenticationService.login(request));
+    }
+
+    @GetMapping("/login")
+    public ResponseEntity<Void> loginWithUnsupportedMethod() {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
 
     @GetMapping("/me")
