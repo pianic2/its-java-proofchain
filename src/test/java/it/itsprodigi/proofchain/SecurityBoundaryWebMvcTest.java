@@ -2,6 +2,7 @@ package it.itsprodigi.proofchain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import io.jsonwebtoken.Jwts;
@@ -20,6 +21,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
@@ -73,7 +75,10 @@ class SecurityBoundaryWebMvcTest extends PostgreSqlIntegrationTest {
                                 .filter(JwtAuthenticationFilter.class::isInstance)
                                 .count())
                 .isEqualTo(1);
-        mockMvc.perform(get("/api/v1/auth/login")).andExpect(status().isMethodNotAllowed());
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
     }
