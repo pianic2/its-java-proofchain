@@ -55,6 +55,8 @@ class JwtTokenServiceTest {
     void claimsAreAllowlisted() {
         var claims = Jwts.parser()
                 .verifyWith(key)
+                .clock(() -> java.util.Date.from(NOW))
+                .clockSkewSeconds(0)
                 .build()
                 .parseSignedClaims(service.issue(UUID.randomUUID(), "user", OperatorRole.ADMIN)
                         .value())
