@@ -26,6 +26,9 @@ spring:
           time_zone: UTC
 
 proofchain:
+  jwt:
+    secret: ${PROOFCHAIN_JWT_SECRET:}
+    access-token-ttl: ${PROOFCHAIN_JWT_ACCESS_TOKEN_TTL:PT30M}
   storage:
     root: ${PROOFCHAIN_STORAGE_ROOT:./storage}
   password:
