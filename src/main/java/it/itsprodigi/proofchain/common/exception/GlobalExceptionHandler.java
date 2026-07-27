@@ -1,5 +1,6 @@
 package it.itsprodigi.proofchain.common.exception;
 
+import it.itsprodigi.proofchain.auth.application.InvalidCredentialsException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
 import java.util.List;
@@ -22,6 +23,16 @@ public class GlobalExceptionHandler {
 
     public GlobalExceptionHandler(ProblemDetailFactory problemDetailFactory) {
         this.problemDetailFactory = problemDetailFactory;
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ProblemDetail handleInvalidCredentials(InvalidCredentialsException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.UNAUTHORIZED,
+                ProblemTypes.INVALID_CREDENTIALS,
+                "Invalid credentials",
+                "The supplied credentials are invalid.",
+                request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

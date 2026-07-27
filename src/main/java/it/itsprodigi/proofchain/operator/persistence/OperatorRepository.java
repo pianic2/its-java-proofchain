@@ -8,9 +8,11 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface OperatorRepository extends JpaRepository<Operator, UUID> {
 
+    @Transactional(readOnly = true)
     Optional<Operator> findByUsername(String normalizedUsername);
 
     boolean existsByUsername(String normalizedUsername);

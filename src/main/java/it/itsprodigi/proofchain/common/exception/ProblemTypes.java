@@ -12,6 +12,7 @@ public final class ProblemTypes {
     public static final URI INVALID_TOKEN = URI.create("https://proofchain.dev/problems/invalid-token");
     public static final URI EXPIRED_TOKEN = URI.create("https://proofchain.dev/problems/expired-token");
     public static final URI ACCESS_DENIED = URI.create("https://proofchain.dev/problems/access-denied");
+    public static final URI INVALID_CREDENTIALS = URI.create("https://proofchain.dev/problems/invalid-credentials");
 
     private ProblemTypes() {}
 }
