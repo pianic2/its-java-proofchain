@@ -29,11 +29,19 @@ Install Java 25 and Docker Engine with Docker Compose v2 support. Docker must be
 
 ## Local setup
 
-Create a local environment file and replace both password placeholders with the same local-only value:
+Create a local environment file:
 
 ```bash
 cp .env.example .env
 ```
+
+Replace both `<local-only-secret>` password placeholders with the same local database password. Then replace `<base64-encoded-local-only-secret-at-least-32-bytes>` with a standard RFC 4648 Base64 value that decodes to at least 32 random bytes. For example, generate a suitable local JWT secret with:
+
+```bash
+openssl rand -base64 32
+```
+
+Paste the command output as the value of `PROOFCHAIN_JWT_SECRET`. Base64 is only an encoding: the generated value remains a secret and must not be committed.
 
 `.env` is ignored and must never be committed. Docker Compose reads this file automatically, while the application requires its variables to be exported in the shell. Before starting the application, load the file with:
 
