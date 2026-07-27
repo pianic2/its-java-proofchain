@@ -1,0 +1,29 @@
+name: IJPC-136 format debug
+
+on:
+  push:
+    branches:
+      - tmp-ijpc-136-format
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Temurin Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Apply formatter
+        run: ./mvnw --batch-mode --no-transfer-progress spotless:apply
+      - name: Capture formatter patch
+        run: git diff --binary > formatted.patch
+      - name: Upload formatter patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatted-patch
+          path: formatted.patch
+          if-no-files-found: error
