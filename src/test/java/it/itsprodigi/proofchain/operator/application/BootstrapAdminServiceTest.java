@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.itsprodigi.proofchain.common.config.PasswordSecurityProperties;
 import it.itsprodigi.proofchain.operator.domain.Operator;
+import it.itsprodigi.proofchain.operator.domain.OperatorRole;
 import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
 import java.lang.reflect.Proxy;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,7 +42,7 @@ class BootstrapAdminServiceTest {
 
         service.bootstrap();
 
-        assertThat(repositoryState.countCalls).isZero();
+        assertThat(repositoryState.lockActiveAdminsCalls).isZero();
         assertThat(repositoryState.saveCalls).isZero();
     }
 
@@ -69,17 +71,26 @@ class BootstrapAdminServiceTest {
         assertThatThrownBy(service::bootstrap)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Bootstrap administrator configuration is incomplete: " + key);
-        assertThat(repositoryState.countCalls).isZero();
+        // The active-admin check runs before configuration validation so that a stale/incomplete
+        // configuration left enabled after a successful bootstrap does not crash a subsequent
+        // startup once an administrator already exists.
+        assertThat(repositoryState.lockActiveAdminsCalls).isEqualTo(1);
         assertThat(repositoryState.saveCalls).isZero();
     }
 
     @Test
-    void existingOperatorsAreSkippedWithoutEncodingOrWriting() {
-        repositoryState.count = 1;
+    void existingActiveAdminIsSkippedWithoutEncodingOrWriting() {
+        repositoryState.existingActiveAdmins = List.of(Operator.create(
+                "existing.admin",
+                "existing.admin@example.com",
+                "e".repeat(60),
+                "Existing",
+                "Admin",
+                OperatorRole.ADMIN));
 
         service.bootstrap();
 
-        assertThat(repositoryState.countCalls).isEqualTo(1);
+        assertThat(repositoryState.lockActiveAdminsCalls).isEqualTo(1);
         assertThat(encoder.encodeCalls).isZero();
         assertThat(repositoryState.saveCalls).isZero();
     }
@@ -110,8 +121,8 @@ class BootstrapAdminServiceTest {
     }
 
     private static final class TestRepositoryState {
-        private long count;
-        private int countCalls;
+        private List<Operator> existingActiveAdmins = List.of();
+        private int lockActiveAdminsCalls;
         private int saveCalls;
         private Operator saved;
 
@@ -120,9 +131,9 @@ class BootstrapAdminServiceTest {
                     OperatorRepository.class.getClassLoader(),
                     new Class<?>[] {OperatorRepository.class},
                     (proxy, method, args) -> {
-                        if (method.getName().equals("count")) {
-                            countCalls++;
-                            return count;
+                        if (method.getName().equals("lockActiveAdmins")) {
+                            lockActiveAdminsCalls++;
+                            return existingActiveAdmins;
                         }
                         if (method.getName().equals("save")) {
                             saveCalls++;

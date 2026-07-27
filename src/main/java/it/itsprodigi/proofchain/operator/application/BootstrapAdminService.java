@@ -36,11 +36,11 @@ public class BootstrapAdminService {
         if (!properties.isEnabled()) {
             return;
         }
-        validateConfiguration();
-        if (operatorRepository.count() > 0) {
-            LOGGER.info("Administrator bootstrap skipped because operators already exist");
+        if (!operatorRepository.lockActiveAdmins().isEmpty()) {
+            LOGGER.info("Administrator bootstrap skipped because an active administrator already exists");
             return;
         }
+        validateConfiguration();
 
         String username = OperatorNormalizer.normalizeUsername(properties.getUsername());
         String email = OperatorNormalizer.normalizeEmail(properties.getEmail());
