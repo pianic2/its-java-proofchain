@@ -9,7 +9,6 @@ import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
 import java.nio.charset.StandardCharsets;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthenticationService {
@@ -29,7 +28,6 @@ public class AuthenticationService {
         dummyPasswordHash = passwordEncoder.encode(DUMMY_PASSWORD);
     }
 
-    @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         String username = OperatorNormalizer.normalizeUsername(request.username());
         Operator operator = operators.findByUsername(username).orElse(null);
