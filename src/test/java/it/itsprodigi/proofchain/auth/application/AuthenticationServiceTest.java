@@ -41,10 +41,7 @@ class AuthenticationServiceTest {
     void normalizesUsernameAndMapsIssuedTokenForActiveOperator() {
         Operator operator = operator(OperatorStatus.ACTIVE);
         IssuedAccessToken issued = new IssuedAccessToken(
-                "redacted",
-                Instant.parse("2026-01-01T00:00:00Z"),
-                Instant.parse("2026-01-01T00:30:00Z"),
-                1800);
+                "redacted", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:30:00Z"), 1800);
         when(operators.findByUsername("admin")).thenReturn(Optional.of(operator));
         when(passwordEncoder.matches("secret", OPERATOR_HASH)).thenReturn(true);
         when(tokens.issue(operator.getId(), "admin", OperatorRole.ADMIN)).thenReturn(issued);
@@ -132,8 +129,8 @@ class AuthenticationServiceTest {
     }
 
     private Operator operator(OperatorStatus status) {
-        Operator operator = Operator.create(
-                "admin", "admin@example.test", OPERATOR_HASH, "Ada", "Admin", OperatorRole.ADMIN);
+        Operator operator =
+                Operator.create("admin", "admin@example.test", OPERATOR_HASH, "Ada", "Admin", OperatorRole.ADMIN);
         if (status != OperatorStatus.ACTIVE) {
             operator.changeStatus(status);
         }
