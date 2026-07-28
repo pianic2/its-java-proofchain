@@ -217,12 +217,14 @@ class OperatorAdminServiceTest {
 
         for (String invalid : new String[] {"unknown,asc", "username,up", "username", "username,asc,role", "id,asc"}) {
             assertThatThrownBy(() -> service.list(0, 20, List.of(invalid)))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(OperatorRequestValidationException.class);
         }
         assertThatThrownBy(() -> service.list(0, 20, List.of("username,asc", "email,asc")))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.list(-1, 20, List.of())).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.list(0, 101, List.of())).isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(OperatorRequestValidationException.class);
+        assertThatThrownBy(() -> service.list(-1, 20, List.of()))
+                .isInstanceOf(OperatorRequestValidationException.class);
+        assertThatThrownBy(() -> service.list(0, 101, List.of()))
+                .isInstanceOf(OperatorRequestValidationException.class);
     }
 
     @Test
