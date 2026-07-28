@@ -8,6 +8,7 @@ import it.itsprodigi.proofchain.auth.application.ExpiredJwtException;
 import it.itsprodigi.proofchain.auth.application.InvalidJwtException;
 import it.itsprodigi.proofchain.auth.application.JwtClaims;
 import it.itsprodigi.proofchain.auth.application.JwtTokenService;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
 import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
@@ -38,11 +39,14 @@ class JwtAuthenticationFilterTest {
     @Mock
     SecurityProblemWriter writer;
 
+    @Mock
+    AuthEventLogger authEventLogger;
+
     JwtAuthenticationFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(tokens, repository, writer);
+        filter = new JwtAuthenticationFilter(tokens, repository, writer, authEventLogger);
         SecurityContextHolder.clearContext();
     }
 
@@ -103,6 +107,7 @@ class JwtAuthenticationFilterTest {
             MockHttpServletRequest request = request(value);
             filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
             verify(writer).invalid(any(), any());
+            verify(authEventLogger, atLeastOnce()).invalidToken(any());
             verifyNoInteractions(repository, tokens);
             assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         }
@@ -111,6 +116,7 @@ class JwtAuthenticationFilterTest {
         duplicate.addHeader("Authorization", "Bearer b");
         filter.doFilter(duplicate, new MockHttpServletResponse(), new MockFilterChain());
         verify(writer, atLeastOnce()).invalid(any(), any());
+        verify(authEventLogger, times(7)).invalidToken(any());
         verifyNoInteractions(repository, tokens);
     }
 
@@ -130,11 +136,13 @@ class JwtAuthenticationFilterTest {
             when(repository.findById(id)).thenReturn(Optional.of(operator(OperatorRole.ADMIN, status)));
             filter.doFilter(request("Bearer token"), new MockHttpServletResponse(), new MockFilterChain());
             verify(writer, atLeastOnce()).invalid(any(), any());
+            verify(authEventLogger, atLeastOnce()).inactiveOperatorAccess(any(), any());
             SecurityContextHolder.clearContext();
         }
         when(repository.findById(id)).thenReturn(Optional.empty());
         filter.doFilter(request("Bearer token"), new MockHttpServletResponse(), new MockFilterChain());
         verify(writer, atLeast(3)).invalid(any(), any());
+        verify(authEventLogger, times(1)).invalidToken(any());
     }
 
     @Test
@@ -146,6 +154,7 @@ class JwtAuthenticationFilterTest {
         when(tokens.validate("expired")).thenThrow(new ExpiredJwtException());
         filter.doFilter(request("Bearer expired"), new MockHttpServletResponse(), new MockFilterChain());
         verify(writer).expired(any(), any());
+        verify(authEventLogger).expiredToken(any());
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         reset(writer);
         SecurityContextHolder.getContext()
@@ -154,6 +163,7 @@ class JwtAuthenticationFilterTest {
         when(tokens.validate("bad")).thenThrow(new InvalidJwtException());
         filter.doFilter(request("Bearer bad"), new MockHttpServletResponse(), new MockFilterChain());
         verify(writer).invalid(any(), any());
+        verify(authEventLogger).invalidToken(any());
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         reset(repository, tokens, writer);
         MockHttpServletRequest error = new MockHttpServletRequest();

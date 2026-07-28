@@ -1,6 +1,7 @@
 package it.itsprodigi.proofchain.common.config;
 
 import it.itsprodigi.proofchain.auth.application.JwtTokenService;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.auth.security.JwtAuthenticationFilter;
 import it.itsprodigi.proofchain.auth.security.ProblemAccessDeniedHandler;
 import it.itsprodigi.proofchain.auth.security.ProblemAuthenticationEntryPoint;
@@ -37,9 +38,10 @@ public class SecurityConfig {
             OperatorRepository operators,
             SecurityProblemWriter writer,
             ProblemAuthenticationEntryPoint entryPoint,
-            ProblemAccessDeniedHandler deniedHandler)
+            ProblemAccessDeniedHandler deniedHandler,
+            AuthEventLogger authEventLogger)
             throws Exception {
-        JwtAuthenticationFilter jwt = new JwtAuthenticationFilter(tokens, operators, writer);
+        JwtAuthenticationFilter jwt = new JwtAuthenticationFilter(tokens, operators, writer, authEventLogger);
         return http.csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())

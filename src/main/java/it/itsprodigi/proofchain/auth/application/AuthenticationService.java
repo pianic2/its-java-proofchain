@@ -2,6 +2,7 @@ package it.itsprodigi.proofchain.auth.application;
 
 import it.itsprodigi.proofchain.auth.api.LoginRequest;
 import it.itsprodigi.proofchain.auth.api.LoginResponse;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorNormalizer;
 import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
@@ -18,13 +19,18 @@ public class AuthenticationService {
     private final OperatorRepository operators;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokens;
+    private final AuthEventLogger authEventLogger;
     private final String dummyPasswordHash;
 
     public AuthenticationService(
-            OperatorRepository operators, PasswordEncoder passwordEncoder, JwtTokenService jwtTokens) {
+            OperatorRepository operators,
+            PasswordEncoder passwordEncoder,
+            JwtTokenService jwtTokens,
+            AuthEventLogger authEventLogger) {
         this.operators = operators;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokens = jwtTokens;
+        this.authEventLogger = authEventLogger;
         dummyPasswordHash = passwordEncoder.encode(DUMMY_PASSWORD);
     }
 
@@ -38,10 +44,12 @@ public class AuthenticationService {
         boolean passwordMatches = passwordEncoder.matches(candidatePassword, expectedHash);
 
         if (operator == null || passwordTooLong || operator.getStatus() != OperatorStatus.ACTIVE || !passwordMatches) {
+            authEventLogger.loginFailure(operator, "INVALID_CREDENTIALS");
             throw new InvalidCredentialsException();
         }
 
         IssuedAccessToken issued = jwtTokens.issue(operator.getId(), operator.getUsername(), operator.getRole());
+        authEventLogger.loginSuccess(operator);
         return new LoginResponse(issued.value(), "Bearer", issued.expiresAt(), issued.expiresInSeconds());
     }
 }

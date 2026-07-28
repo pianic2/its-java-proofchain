@@ -1,5 +1,6 @@
 package it.itsprodigi.proofchain.auth.security;
 
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.common.exception.ProblemDetailFactory;
 import it.itsprodigi.proofchain.common.exception.ProblemTypes;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,8 @@ import java.io.IOException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -15,10 +18,12 @@ import tools.jackson.databind.json.JsonMapper;
 public class SecurityProblemWriter {
     private final JsonMapper mapper;
     private final ProblemDetailFactory factory;
+    private final AuthEventLogger authEventLogger;
 
-    public SecurityProblemWriter(JsonMapper mapper, ProblemDetailFactory factory) {
+    public SecurityProblemWriter(JsonMapper mapper, ProblemDetailFactory factory, AuthEventLogger authEventLogger) {
         this.mapper = mapper;
         this.factory = factory;
+        this.authEventLogger = authEventLogger;
     }
 
     public void invalid(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -52,6 +57,7 @@ public class SecurityProblemWriter {
     }
 
     public void denied(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        logAccessDenied(request);
         write(
                 request,
                 response,
@@ -59,6 +65,15 @@ public class SecurityProblemWriter {
                 ProblemTypes.ACCESS_DENIED,
                 "Access denied",
                 "The authenticated operator is not authorized to perform this operation.");
+    }
+
+    private void logAccessDenied(HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedOperator operator) {
+            authEventLogger.accessDenied(operator.id(), operator.username(), operator.role(), request.getRequestURI());
+        } else {
+            authEventLogger.accessDenied(null, null, null, request.getRequestURI());
+        }
     }
 
     private void write(

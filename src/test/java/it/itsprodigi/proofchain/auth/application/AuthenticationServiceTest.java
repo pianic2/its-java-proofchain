@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import it.itsprodigi.proofchain.auth.api.LoginRequest;
 import it.itsprodigi.proofchain.auth.api.LoginResponse;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
 import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
@@ -29,12 +30,13 @@ class AuthenticationServiceTest {
     private final OperatorRepository operators = mock(OperatorRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final JwtTokenService tokens = mock(JwtTokenService.class);
+    private final AuthEventLogger authEventLogger = mock(AuthEventLogger.class);
     private AuthenticationService service;
 
     @BeforeEach
     void setUp() {
         when(passwordEncoder.encode(DUMMY_PASSWORD)).thenReturn(DUMMY_HASH);
-        service = new AuthenticationService(operators, passwordEncoder, tokens);
+        service = new AuthenticationService(operators, passwordEncoder, tokens, authEventLogger);
     }
 
     @Test
@@ -53,6 +55,7 @@ class AuthenticationServiceTest {
         verify(operators).findByUsername("admin");
         verify(passwordEncoder).matches("secret", OPERATOR_HASH);
         verify(tokens).issue(operator.getId(), "admin", OperatorRole.ADMIN);
+        verify(authEventLogger).loginSuccess(operator);
     }
 
     @Test
@@ -66,6 +69,7 @@ class AuthenticationServiceTest {
         verify(passwordEncoder).encode(DUMMY_PASSWORD);
         verify(passwordEncoder).matches("secret", DUMMY_HASH);
         verify(tokens, never()).issue(any(), any(), any());
+        verify(authEventLogger).loginFailure(null, "INVALID_CREDENTIALS");
     }
 
     @Test
@@ -79,6 +83,7 @@ class AuthenticationServiceTest {
 
         verify(passwordEncoder).matches("wrong", OPERATOR_HASH);
         verify(tokens, never()).issue(any(), any(), any());
+        verify(authEventLogger).loginFailure(operator, "INVALID_CREDENTIALS");
     }
 
     @Test
@@ -92,6 +97,7 @@ class AuthenticationServiceTest {
 
         verify(passwordEncoder).matches("secret", OPERATOR_HASH);
         verify(tokens, never()).issue(any(), any(), any());
+        verify(authEventLogger).loginFailure(operator, "INVALID_CREDENTIALS");
     }
 
     @Test
@@ -105,6 +111,7 @@ class AuthenticationServiceTest {
 
         verify(passwordEncoder).matches("secret", OPERATOR_HASH);
         verify(tokens, never()).issue(any(), any(), any());
+        verify(authEventLogger).loginFailure(operator, "INVALID_CREDENTIALS");
     }
 
     @Test
