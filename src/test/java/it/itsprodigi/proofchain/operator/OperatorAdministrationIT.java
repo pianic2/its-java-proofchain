@@ -147,13 +147,12 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<UpdateResult> first = executor.submit(
-                    () -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
-            Future<UpdateResult> second = executor.submit(
-                    () -> updateRoleAsAdmin(target.getId(), OperatorRole.EVIDENCE_OFFICER));
+            Future<UpdateResult> first =
+                    executor.submit(() -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
+            Future<UpdateResult> second =
+                    executor.submit(() -> updateRoleAsAdmin(target.getId(), OperatorRole.EVIDENCE_OFFICER));
 
-            List<UpdateResult> results =
-                    List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+            List<UpdateResult> results = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
 
             assertThat(results).extracting(UpdateResult::success).containsExactlyInAnyOrder(true, false);
             assertThat(results)
