@@ -1,6 +1,8 @@
 package it.itsprodigi.proofchain.common.exception;
 
 import it.itsprodigi.proofchain.auth.application.InvalidCredentialsException;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
+import it.itsprodigi.proofchain.auth.security.AuthenticatedOperator;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
@@ -15,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,9 +31,11 @@ public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private final ProblemDetailFactory problemDetailFactory;
+    private final AuthEventLogger authEventLogger;
 
-    public GlobalExceptionHandler(ProblemDetailFactory problemDetailFactory) {
+    public GlobalExceptionHandler(ProblemDetailFactory problemDetailFactory, AuthEventLogger authEventLogger) {
         this.problemDetailFactory = problemDetailFactory;
+        this.authEventLogger = authEventLogger;
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -86,6 +92,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedOperator operator) {
+            authEventLogger.accessDenied(operator.id(), operator.username(), operator.role(), request.getRequestURI());
+        } else {
+            authEventLogger.accessDenied(null, null, null, request.getRequestURI());
+        }
         return problemDetailFactory.create(
                 HttpStatus.FORBIDDEN,
                 ProblemTypes.ACCESS_DENIED,

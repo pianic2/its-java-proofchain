@@ -3,6 +3,7 @@ package it.itsprodigi.proofchain.auth.security;
 import it.itsprodigi.proofchain.auth.application.ExpiredJwtException;
 import it.itsprodigi.proofchain.auth.application.InvalidJwtException;
 import it.itsprodigi.proofchain.auth.application.JwtTokenService;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
 import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
@@ -21,12 +22,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenService tokens;
     private final OperatorRepository operators;
     private final SecurityProblemWriter problemWriter;
+    private final AuthEventLogger authEventLogger;
 
     public JwtAuthenticationFilter(
-            JwtTokenService tokens, OperatorRepository operators, SecurityProblemWriter problemWriter) {
+            JwtTokenService tokens,
+            OperatorRepository operators,
+            SecurityProblemWriter problemWriter,
+            AuthEventLogger authEventLogger) {
         this.tokens = tokens;
         this.operators = operators;
         this.problemWriter = problemWriter;
+        this.authEventLogger = authEventLogger;
     }
 
     @Override
@@ -47,14 +53,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         if (values.length != 1 || !values[0].matches("Bearer [^\\s,]+")) {
+            authEventLogger.invalidToken(request.getRequestURI());
             problemWriter.invalid(request, response);
             return;
         }
         try {
             var claims = tokens.validate(values[0].substring(7));
             Optional<Operator> found = operators.findById(claims.operatorId());
-            Operator operator =
-                    found.filter(o -> o.getStatus() == OperatorStatus.ACTIVE).orElseThrow(InvalidJwtException::new);
+            if (found.isEmpty()) {
+                throw new InvalidJwtException();
+            }
+            Operator operator = found.get();
+            if (operator.getStatus() != OperatorStatus.ACTIVE) {
+                authEventLogger.inactiveOperatorAccess(operator, request.getRequestURI());
+                SecurityContextHolder.clearContext();
+                problemWriter.invalid(request, response);
+                return;
+            }
             var principal = new AuthenticatedOperator(
                     operator.getId(),
                     operator.getUsername(),
@@ -75,10 +90,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.setContext(context);
         } catch (ExpiredJwtException ex) {
             SecurityContextHolder.clearContext();
+            authEventLogger.expiredToken(request.getRequestURI());
             problemWriter.expired(request, response);
             return;
         } catch (InvalidJwtException ex) {
             SecurityContextHolder.clearContext();
+            authEventLogger.invalidToken(request.getRequestURI());
             problemWriter.invalid(request, response);
             return;
         }

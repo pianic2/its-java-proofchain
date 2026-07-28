@@ -6,7 +6,7 @@ ProofChain is a time-bounded ITS project implemented as a Spring Boot modular mo
 
 ## MVP boundaries
 
-Sprint 0 establishes the build, persistence, HTTP, security, documentation, and quality foundations. Domain use cases, authentication and authorization, file processing, and production operations are delivered only by later approved subtasks.
+The current Sprint 1 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization and ADMIN-protected operator management. Evidence and custody workflows, file processing and production operations remain outside the implemented scope.
 
 ## Technology stack
 
@@ -19,9 +19,7 @@ Sprint 0 establishes the build, persistence, HTTP, security, documentation, and 
 - Flyway for schema migrations
 - PostgreSQL Testcontainers for integration tests
 
-Java 25 is the canonical project runtime and build baseline. The application is organized as a feature-first modular monolith. See [ADR-001](./docs/adr/ADR-001-foundation-baseline.md) for the cumulative foundation decisions.
-
-Persisted domain timestamps use the same microsecond precision supported by PostgreSQL. See [ADR-002](./docs/adr/ADR-002-database-aligned-timestamp-precision.md) for the precision and monotonicity contract.
+Java 25 is the canonical project runtime and build baseline. The application is organized as a feature-first modular monolith. See the [ADR index](./docs/adr/README.md) for the implemented architecture decisions.
 
 ## Prerequisites
 
@@ -51,7 +49,7 @@ source .env
 set +a
 ```
 
-The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`.
+The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`. JWT and optional bootstrap-admin settings are listed in [.env.example](./.env.example) and described in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
 
 ## Database startup
 
@@ -72,6 +70,8 @@ The `local` Spring profile is enabled by default. After PostgreSQL is running, s
 ./mvnw spring-boot:run
 ```
 
+Authentication is available at `POST /api/v1/auth/login` and `GET /api/v1/auth/me`. Operator administration is exposed under `/api/v1/operators` for authenticated ADMIN operators. Authentication events are written to the ignored local file `auth.log`; the complete security boundary is recorded in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
+
 ## Tests and quality gate
 
 The canonical verification command is:
@@ -86,9 +86,9 @@ Java formatting is frozen to Spotless `3.6.0` with `palantir-java-format 2.78.0`
 
 ## OpenAPI and Swagger
 
-During Sprint 0, the generated OpenAPI document and Swagger UI are available at `/v3/api-docs` and `/swagger-ui/index.html`. JWT authentication is documented but is not operational until its approved implementation task; no application API endpoint is opened by the temporary configuration.
+The generated OpenAPI document and Swagger UI are public at `/v3/api-docs` and `/swagger-ui/index.html`. Login and documentation routes are public; protected application routes use the documented bearer authentication scheme.
 
-Application errors use the Spring Problem Details media type `application/problem+json`. Security-layer failures may use a different response format.
+Application and security errors use the Spring Problem Details media type `application/problem+json` and the repository's existing problem-type contracts.
 
 ## Project structure
 
@@ -107,8 +107,9 @@ Database migrations live under `src/main/resources/db/migration`. Tests mirror t
 ## Documentation
 
 - [Contributing rules](./CONTRIBUTING.md)
-- [ADR-001 — Foundation baseline](./docs/adr/ADR-001-foundation-baseline.md)
-- [ADR-002 — Database-aligned timestamp precision](./docs/adr/ADR-002-database-aligned-timestamp-precision.md)
+- [Architecture decision records](./docs/adr/README.md)
+- [ADR-002 — Sprint 1 baseline](./docs/adr/ADR-002-sprint-1-baseline.md)
+- [ADR-003 — Authentication and operator security](./docs/adr/ADR-003-authentication-and-operator-security.md)
 - [MIT license](./LICENSE)
 
 ## License

@@ -2,7 +2,10 @@ package it.itsprodigi.proofchain.operator.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.common.config.PasswordSecurityProperties;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
@@ -12,6 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 class BootstrapAdminServiceTest {
 
@@ -20,6 +24,7 @@ class BootstrapAdminServiceTest {
     private TestEncoder encoder;
     private BootstrapAdminProperties properties;
     private BootstrapAdminService service;
+    private AuthEventLogger authEventLogger;
 
     @BeforeEach
     void setUp() {
@@ -33,7 +38,8 @@ class BootstrapAdminServiceTest {
         PasswordSecurityProperties securityProperties = new PasswordSecurityProperties();
         securityProperties.setBcryptStrength(4);
         PasswordPolicy policy = new PasswordPolicy(securityProperties);
-        service = new BootstrapAdminService(properties, repositoryState.repository(), policy, encoder);
+        authEventLogger = mock(AuthEventLogger.class);
+        service = new BootstrapAdminService(properties, repositoryState.repository(), policy, encoder, authEventLogger);
     }
 
     @Test
@@ -44,6 +50,7 @@ class BootstrapAdminServiceTest {
 
         assertThat(repositoryState.lockActiveAdminsCalls).isZero();
         assertThat(repositoryState.saveCalls).isZero();
+        verify(authEventLogger).bootstrapAdminSkipped(null, "BOOTSTRAP_DISABLED");
     }
 
     @Test
@@ -76,6 +83,7 @@ class BootstrapAdminServiceTest {
         // startup once an administrator already exists.
         assertThat(repositoryState.lockActiveAdminsCalls).isEqualTo(1);
         assertThat(repositoryState.saveCalls).isZero();
+        org.mockito.Mockito.verifyNoInteractions(authEventLogger);
     }
 
     @Test
@@ -93,6 +101,8 @@ class BootstrapAdminServiceTest {
         assertThat(repositoryState.lockActiveAdminsCalls).isEqualTo(1);
         assertThat(encoder.encodeCalls).isZero();
         assertThat(repositoryState.saveCalls).isZero();
+        verify(authEventLogger)
+                .bootstrapAdminSkipped(repositoryState.existingActiveAdmins.getFirst(), "ACTIVE_ADMIN_EXISTS");
     }
 
     @Test
@@ -109,6 +119,7 @@ class BootstrapAdminServiceTest {
         assertThat(operator.getPasswordHash()).isEqualTo(encodedPassword);
         assertThat(operator.getFirstName()).isEqualTo("Initial");
         assertThat(operator.getLastName()).isEqualTo("Administrator");
+        verify(authEventLogger).bootstrapAdminCompleted(operator);
     }
 
     @Test
@@ -118,6 +129,21 @@ class BootstrapAdminServiceTest {
         assertThatThrownBy(service::bootstrap).hasMessageContaining("character limits");
         assertThat(encoder.encodeCalls).isZero();
         assertThat(repositoryState.saveCalls).isZero();
+        org.mockito.Mockito.verifyNoInteractions(authEventLogger);
+    }
+
+    @Test
+    void completionIsEmittedOnlyAfterTransactionCommit() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.bootstrap();
+
+            org.mockito.Mockito.verifyNoInteractions(authEventLogger);
+            TransactionSynchronizationManager.getSynchronizations().getFirst().afterCommit();
+            verify(authEventLogger).bootstrapAdminCompleted(repositoryState.saved);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     private static final class TestRepositoryState {
