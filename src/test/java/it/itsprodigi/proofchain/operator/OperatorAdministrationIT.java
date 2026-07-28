@@ -2,12 +2,16 @@ package it.itsprodigi.proofchain.operator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
 
 import it.itsprodigi.proofchain.operator.api.CreateOperatorRequest;
 import it.itsprodigi.proofchain.operator.api.OperatorPageResponse;
+import it.itsprodigi.proofchain.operator.api.UpdateOperatorRoleRequest;
 import it.itsprodigi.proofchain.operator.api.UpdateOperatorStatusRequest;
+import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorAdminService;
+import it.itsprodigi.proofchain.operator.application.OperatorRequestValidationException;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
 import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
@@ -20,6 +24,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -33,6 +38,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
 
@@ -41,7 +47,7 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
     @Autowired
     private OperatorAdminService service;
 
-    @Autowired
+    @MockitoSpyBean
     private OperatorRepository operators;
 
     @Autowired
@@ -106,7 +112,7 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
         assertThat(page.sort().field()).isEqualTo("username");
         assertThat(page.sort().direction()).isEqualTo("asc");
         assertThatThrownBy(() -> service.list(0, 20, List.of("unknown,asc")))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(OperatorRequestValidationException.class);
     }
 
     @Test
@@ -128,11 +134,58 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
                 .isEqualTo(OperatorStatus.ACTIVE);
     }
 
+    @Test
+    void concurrentUpdatesToSameOperatorProduceOneTranslatedOptimisticLockConflict() throws Exception {
+        Operator target = operators.saveAndFlush(operator("optimistic", OperatorStatus.ACTIVE));
+        CyclicBarrier flushBarrier = new CyclicBarrier(2);
+        doAnswer(invocation -> {
+                    await(flushBarrier);
+                    return invocation.callRealMethod();
+                })
+                .when(operators)
+                .flush();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<UpdateResult> first = executor.submit(
+                    () -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
+            Future<UpdateResult> second = executor.submit(
+                    () -> updateRoleAsAdmin(target.getId(), OperatorRole.EVIDENCE_OFFICER));
+
+            List<UpdateResult> results =
+                    List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+
+            assertThat(results).extracting(UpdateResult::success).containsExactlyInAnyOrder(true, false);
+            assertThat(results)
+                    .filteredOn(result -> result.failure() != null)
+                    .extracting(UpdateResult::failure)
+                    .allMatch(ConcurrentOperatorModificationException.class::isInstance);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        Operator reloaded = operators.findById(target.getId()).orElseThrow();
+        assertThat(reloaded.getRole()).isIn(OperatorRole.CASE_MANAGER, OperatorRole.EVIDENCE_OFFICER);
+        assertThat(reloaded.getVersion()).isEqualTo(1L);
+    }
+
     private void authenticateAsAdmin() {
         SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());
         SecurityContextHolder.getContext()
                 .setAuthentication(new UsernamePasswordAuthenticationToken(
                         "test-admin", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+    }
+
+    private UpdateResult updateRoleAsAdmin(UUID targetId, OperatorRole role) {
+        authenticateAsAdmin();
+        try {
+            service.updateRole(targetId, new UpdateOperatorRoleRequest(role), UUID.randomUUID());
+            return new UpdateResult(true, null);
+        } catch (RuntimeException exception) {
+            return new UpdateResult(false, exception);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     private Operator operator(String username, OperatorStatus status) {
@@ -179,6 +232,14 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
         }
     }
 
+    private static void await(CyclicBarrier barrier) {
+        try {
+            barrier.await(10, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Concurrent test coordination failed", exception);
+        }
+    }
+
     private static void insertBlockingOperator(Connection connection, UUID id, String username, String email)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
@@ -202,4 +263,6 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
             statement.executeUpdate();
         }
     }
+
+    private record UpdateResult(boolean success, RuntimeException failure) {}
 }
