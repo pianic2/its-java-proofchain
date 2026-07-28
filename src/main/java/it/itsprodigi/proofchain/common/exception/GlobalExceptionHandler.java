@@ -4,6 +4,7 @@ import it.itsprodigi.proofchain.auth.application.InvalidCredentialsException;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
+import it.itsprodigi.proofchain.operator.application.OperatorRequestValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
 import java.util.List;
@@ -135,18 +136,15 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler({
-        IllegalArgumentException.class,
-        HttpMessageNotReadableException.class,
-        MethodArgumentTypeMismatchException.class
-    })
-    ProblemDetail handleInvalidRequest(Exception exception, HttpServletRequest request) {
-        return problemDetailFactory.create(
-                HttpStatus.BAD_REQUEST,
-                ProblemTypes.VALIDATION_ERROR,
-                "Validation failed",
-                "One or more request fields are invalid.",
-                request);
+    @ExceptionHandler(OperatorRequestValidationException.class)
+    ProblemDetail handleOperatorRequestValidation(
+            OperatorRequestValidationException exception, HttpServletRequest request) {
+        return validationProblem(request);
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    ProblemDetail handleInvalidRequestBinding(Exception exception, HttpServletRequest request) {
+        return validationProblem(request);
     }
 
     @ExceptionHandler(Exception.class)
@@ -161,6 +159,15 @@ public class GlobalExceptionHandler {
                 ProblemTypes.INTERNAL_SERVER_ERROR,
                 "Internal server error",
                 "An unexpected error occurred.",
+                request);
+    }
+
+    private ProblemDetail validationProblem(HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.BAD_REQUEST,
+                ProblemTypes.VALIDATION_ERROR,
+                "Validation failed",
+                "One or more request fields are invalid.",
                 request);
     }
 
