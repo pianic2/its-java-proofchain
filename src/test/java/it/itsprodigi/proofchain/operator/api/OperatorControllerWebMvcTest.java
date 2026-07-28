@@ -265,20 +265,47 @@ class OperatorControllerWebMvcTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void openApiDocumentsOperatorSecuritySchemasAndResponses() throws Exception {
+    void noHardDeleteEndpointIsExposed() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/operators/{id}'].delete").doesNotExist());
+    }
+
+    @Test
+    void openApiDocumentsOperatorSecuritySchemasResponsesAndMediaTypes() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/v1/operators'].post.security[0].bearerAuth")
                         .exists())
-                .andExpect(jsonPath("$.paths['/api/v1/operators'].post.responses['201']")
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators'].post.responses['201'].content['application/json']")
                         .exists())
-                .andExpect(jsonPath("$.paths['/api/v1/operators'].post.responses['409']")
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators'].post.responses['400'].content['application/problem+json']")
                         .exists())
-                .andExpect(jsonPath("$.paths['/api/v1/operators'].get.responses['200']")
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators'].post.responses['409'].content['application/problem+json']")
                         .exists())
-                .andExpect(jsonPath("$.paths['/api/v1/operators/{id}/role'].patch.responses['200']")
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators'].get.responses['200'].content['application/json']")
                         .exists())
-                .andExpect(jsonPath("$.paths['/api/v1/operators/{id}/status'].patch.responses['200']")
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators'].get.responses['400'].content['application/problem+json']")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators/{id}'].get.responses['404'].content['application/problem+json']")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators/{id}/role'].patch.responses['200'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators/{id}/role'].patch.responses['409'].content['application/problem+json']")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators/{id}/status'].patch.responses['200'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/operators/{id}/status'].patch.responses['409'].content['application/problem+json']")
                         .exists())
                 .andExpect(jsonPath("$.components.schemas.OperatorDetailResponse.properties.passwordHash")
                         .doesNotExist())
