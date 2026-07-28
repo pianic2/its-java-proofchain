@@ -1,18 +1,24 @@
 package it.itsprodigi.proofchain.common.exception;
 
 import it.itsprodigi.proofchain.auth.application.InvalidCredentialsException;
+import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
+import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
+import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -32,6 +38,48 @@ public class GlobalExceptionHandler {
                 ProblemTypes.INVALID_CREDENTIALS,
                 "Invalid credentials",
                 "The supplied credentials are invalid.",
+                request);
+    }
+
+    @ExceptionHandler(DuplicateOperatorException.class)
+    ProblemDetail handleDuplicateOperator(DuplicateOperatorException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.DUPLICATE_RESOURCE,
+                "Duplicate resource",
+                "An operator with the supplied username or email already exists.",
+                request);
+    }
+
+    @ExceptionHandler(OperatorInvariantException.class)
+    ProblemDetail handleOperatorInvariant(OperatorInvariantException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.OPERATOR_INVARIANT_CONFLICT,
+                "Operator invariant conflict",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(ConcurrentOperatorModificationException.class)
+    ProblemDetail handleConcurrentOperatorModification(
+            ConcurrentOperatorModificationException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CONCURRENT_MODIFICATION,
+                "Concurrent modification",
+                "The operator was modified by another transaction. Retry using current data.",
+                request);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail handleOptimisticLockingFailure(
+            OptimisticLockingFailureException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CONCURRENT_MODIFICATION,
+                "Concurrent modification",
+                "The operator was modified by another transaction. Retry using current data.",
                 request);
     }
 
@@ -85,6 +133,20 @@ public class GlobalExceptionHandler {
                 request);
         problem.setProperty("errors", errors);
         return problem;
+    }
+
+    @ExceptionHandler({
+        IllegalArgumentException.class,
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class
+    })
+    ProblemDetail handleInvalidRequest(Exception exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.BAD_REQUEST,
+                ProblemTypes.VALIDATION_ERROR,
+                "Validation failed",
+                "One or more request fields are invalid.",
+                request);
     }
 
     @ExceptionHandler(Exception.class)
