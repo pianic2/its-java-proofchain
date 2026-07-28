@@ -2,7 +2,6 @@ package it.itsprodigi.proofchain.operator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doAnswer;
 
 import it.itsprodigi.proofchain.operator.api.CreateOperatorRequest;
 import it.itsprodigi.proofchain.operator.api.OperatorPageResponse;
@@ -24,7 +23,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -38,7 +36,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.support.TransactionTemplate;
 
 class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
 
@@ -47,7 +45,7 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
     @Autowired
     private OperatorAdminService service;
 
-    @MockitoSpyBean
+    @Autowired
     private OperatorRepository operators;
 
     @Autowired
@@ -55,6 +53,9 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void cleanOperators() {
@@ -135,36 +136,27 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void concurrentUpdatesToSameOperatorProduceOneTranslatedOptimisticLockConflict() throws Exception {
+    void concurrentUpdatesToSameOperatorProduceOneTranslatedOptimisticLockConflict() {
         Operator target = operators.saveAndFlush(operator("optimistic", OperatorStatus.ACTIVE));
-        CyclicBarrier flushBarrier = new CyclicBarrier(2);
-        doAnswer(invocation -> {
-                    await(flushBarrier);
-                    return invocation.callRealMethod();
-                })
-                .when(operators)
-                .flush();
-
-        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            Future<UpdateResult> first =
-                    executor.submit(() -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
-            Future<UpdateResult> second =
-                    executor.submit(() -> updateRoleAsAdmin(target.getId(), OperatorRole.EVIDENCE_OFFICER));
-
-            List<UpdateResult> results = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
-
-            assertThat(results).extracting(UpdateResult::success).containsExactlyInAnyOrder(true, false);
-            assertThat(results)
-                    .filteredOn(result -> result.failure() != null)
-                    .extracting(UpdateResult::failure)
-                    .allMatch(ConcurrentOperatorModificationException.class::isInstance);
+            assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
+                        operators.findById(target.getId()).orElseThrow();
+                        Future<UpdateResult> winner = executor.submit(
+                                () -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
+                        assertThat(await(winner).success()).isTrue();
+                        service.updateRole(
+                                target.getId(),
+                                new UpdateOperatorRoleRequest(OperatorRole.EVIDENCE_OFFICER),
+                                UUID.randomUUID());
+                    }))
+                    .isInstanceOf(ConcurrentOperatorModificationException.class);
         } finally {
             executor.shutdownNow();
         }
 
         Operator reloaded = operators.findById(target.getId()).orElseThrow();
-        assertThat(reloaded.getRole()).isIn(OperatorRole.CASE_MANAGER, OperatorRole.EVIDENCE_OFFICER);
+        assertThat(reloaded.getRole()).isEqualTo(OperatorRole.CASE_MANAGER);
         assertThat(reloaded.getVersion()).isEqualTo(1L);
     }
 
@@ -231,9 +223,9 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
         }
     }
 
-    private static void await(CyclicBarrier barrier) {
+    private static UpdateResult await(Future<UpdateResult> future) {
         try {
-            barrier.await(10, TimeUnit.SECONDS);
+            return future.get(10, TimeUnit.SECONDS);
         } catch (Exception exception) {
             throw new IllegalStateException("Concurrent test coordination failed", exception);
         }
