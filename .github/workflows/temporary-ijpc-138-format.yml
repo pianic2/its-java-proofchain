@@ -1,0 +1,33 @@
+name: Temporary IJPC-138 format
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Temurin Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Apply repository formatter
+        run: ./mvnw --batch-mode --no-transfer-progress spotless:apply
+      - name: Upload formatted sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: ijpc-138-formatted-sources-v2
+          path: |
+            src/main/java
+            src/test/java
+          if-no-files-found: error
+          retention-days: 1
