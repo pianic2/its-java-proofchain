@@ -142,8 +142,8 @@ class OperatorAdministrationIT extends PostgreSqlIntegrationTest {
         try {
             assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
                         operators.findById(target.getId()).orElseThrow();
-                        Future<UpdateResult> winner = executor.submit(
-                                () -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
+                        Future<UpdateResult> winner =
+                                executor.submit(() -> updateRoleAsAdmin(target.getId(), OperatorRole.CASE_MANAGER));
                         assertThat(await(winner).success()).isTrue();
                         service.updateRole(
                                 target.getId(),
