@@ -14,6 +14,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -43,23 +44,38 @@ public class OperatorController {
     @ApiResponse(
             responseCode = "201",
             description = "Operator created",
-            content = @Content(schema = @Schema(implementation = OperatorDetailResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = OperatorDetailResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "403",
             description = "Access denied",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "409",
             description = "Duplicate identity",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<OperatorDetailResponse> create(@Valid @RequestBody CreateOperatorRequest request) {
         OperatorDetailResponse response = service.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -76,19 +92,31 @@ public class OperatorController {
     @ApiResponse(
             responseCode = "200",
             description = "Operator page",
-            content = @Content(schema = @Schema(implementation = OperatorPageResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = OperatorPageResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "403",
             description = "Access denied",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public OperatorPageResponse list(
             @Parameter(description = "Zero-based page index", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size from 1 to 100", example = "20") @RequestParam(defaultValue = "20")
@@ -106,23 +134,38 @@ public class OperatorController {
     @ApiResponse(
             responseCode = "200",
             description = "Operator details",
-            content = @Content(schema = @Schema(implementation = OperatorDetailResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = OperatorDetailResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Invalid UUID",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "403",
             description = "Access denied",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "404",
             description = "Operator not found",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public OperatorDetailResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
@@ -132,27 +175,45 @@ public class OperatorController {
     @ApiResponse(
             responseCode = "200",
             description = "Operator role updated",
-            content = @Content(schema = @Schema(implementation = OperatorDetailResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = OperatorDetailResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "403",
             description = "Access denied",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "404",
             description = "Operator not found",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "409",
             description = "Operator invariant or concurrent modification",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public OperatorDetailResponse updateRole(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateOperatorRoleRequest request,
@@ -165,27 +226,45 @@ public class OperatorController {
     @ApiResponse(
             responseCode = "200",
             description = "Operator status updated",
-            content = @Content(schema = @Schema(implementation = OperatorDetailResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = OperatorDetailResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "401",
             description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "403",
             description = "Access denied",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "404",
             description = "Operator not found",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
             responseCode = "409",
             description = "Operator invariant or concurrent modification",
-            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ProblemDetail.class)))
     public OperatorDetailResponse updateStatus(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateOperatorStatusRequest request,
