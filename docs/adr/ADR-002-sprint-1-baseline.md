@@ -1,18 +1,22 @@
-# ADR-002: Database-aligned timestamp precision
+# ADR-002: Sprint 1 baseline
 
 ## Status
 
-Accepted for Sprint 1.
+Accepted for Sprint 1. This cumulative ADR records the minimum Sprint 1 architecture baseline and is updated only when an approved implementation changes it.
 
 ## Context
 
-ProofChain represents domain timestamps with Java `Instant` values and persists them to PostgreSQL `TIMESTAMPTZ` columns. Java can represent nanosecond precision, while PostgreSQL stores these timestamps at microsecond precision.
+ProofChain is a time-bounded ITS project. Sprint 1 needs a stable, cumulative record for approved architecture decisions that establish the implemented domain and persistence baseline.
+
+The first decision recorded in this Sprint 1 baseline concerns the precision boundary between Java domain timestamps and PostgreSQL persistence.
 
 A domain update previously guaranteed monotonic `updatedAt` values by adding one nanosecond when `Instant.now()` did not advance. That increment can be lost when the value is persisted because it is below the database precision. The in-memory aggregate could therefore observe a strictly newer timestamp while a database round trip returned the same stored value.
 
 ProofChain depends on timestamps for auditability and deterministic evidence. The domain model must not promise temporal precision that the persistence boundary cannot preserve.
 
 ## Decision
+
+### Database-aligned timestamp precision
 
 - Domain timestamps persisted to PostgreSQL are normalized to microsecond precision with `Instant.truncatedTo(ChronoUnit.MICROS)`.
 - Aggregate creation timestamps and later update timestamps use the same precision contract.
@@ -23,7 +27,7 @@ ProofChain depends on timestamps for auditability and deterministic evidence. Th
 
 ## Consequences
 
-The Java domain and PostgreSQL persistence model now share one explicit timestamp precision. Rapid successive updates remain distinguishable after persistence, tests no longer depend on nanosecond values that PostgreSQL cannot retain, and timestamp behavior is easier to explain and review.
+The Sprint 1 baseline has one documented, reproducible location for its approved architecture decisions. The Java domain and PostgreSQL persistence model share one explicit timestamp precision, and later Sprint 1 work must update this ADR only when an approved implementation changes a recorded baseline decision.
 
 The system intentionally gives up unused nanosecond precision for persisted domain state. Any component that introduces persisted timestamps must normalize them consistently. A future database change with different timestamp semantics requires review of this decision and its tests.
 

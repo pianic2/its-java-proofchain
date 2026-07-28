@@ -1,4 +1,4 @@
-# ADR-002: Authentication and operator security
+# ADR-003: Authentication and operator security
 
 - Status: Accepted
 - Date: 2026-07-28

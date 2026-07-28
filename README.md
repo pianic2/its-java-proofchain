@@ -49,7 +49,7 @@ source .env
 set +a
 ```
 
-The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`. JWT and optional bootstrap-admin settings are listed in [.env.example](./.env.example) and described in [ADR-002](./docs/adr/ADR-002-authentication-and-operator-security.md).
+The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`. JWT and optional bootstrap-admin settings are listed in [.env.example](./.env.example) and described in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
 
 ## Database startup
 
@@ -70,7 +70,7 @@ The `local` Spring profile is enabled by default. After PostgreSQL is running, s
 ./mvnw spring-boot:run
 ```
 
-Authentication is available at `POST /api/v1/auth/login` and `GET /api/v1/auth/me`. Operator administration is exposed under `/api/v1/operators` for authenticated ADMIN operators. Authentication events are written to the ignored local file `auth.log`; the complete security boundary is recorded in [ADR-002](./docs/adr/ADR-002-authentication-and-operator-security.md).
+Authentication is available at `POST /api/v1/auth/login` and `GET /api/v1/auth/me`. Operator administration is exposed under `/api/v1/operators` for authenticated ADMIN operators. Authentication events are written to the ignored local file `auth.log`; the complete security boundary is recorded in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
 
 ## Tests and quality gate
 
@@ -108,7 +108,8 @@ Database migrations live under `src/main/resources/db/migration`. Tests mirror t
 
 - [Contributing rules](./CONTRIBUTING.md)
 - [Architecture decision records](./docs/adr/README.md)
-- [ADR-002 — Authentication and operator security](./docs/adr/ADR-002-authentication-and-operator-security.md)
+- [ADR-002 — Sprint 1 baseline](./docs/adr/ADR-002-sprint-1-baseline.md)
+- [ADR-003 — Authentication and operator security](./docs/adr/ADR-003-authentication-and-operator-security.md)
 - [MIT license](./LICENSE)
 
 ## License
