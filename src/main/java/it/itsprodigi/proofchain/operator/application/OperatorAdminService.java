@@ -62,12 +62,12 @@ public class OperatorAdminService {
     @Transactional
     public OperatorDetailResponse create(CreateOperatorRequest request) {
         Objects.requireNonNull(request, "request must not be null");
-        Operator canonical = canonicalOperator(request);
+        Operator canonical = canonicalOperatorOrThrow(request);
         if (operators.existsByUsername(canonical.getUsername()) || operators.existsByEmail(canonical.getEmail())) {
             throw new DuplicateOperatorException();
         }
 
-        passwordPolicy.validate(request.password());
+        validatePasswordOrThrow(request.password());
         String passwordHash = passwordEncoder.encode(request.password());
         Operator operator = Operator.create(
                 canonical.getUsername(),
@@ -179,13 +179,29 @@ public class OperatorAdminService {
         return mapper.toDetail(target);
     }
 
+    private Operator canonicalOperatorOrThrow(CreateOperatorRequest request) {
+        try {
+            return canonicalOperator(request);
+        } catch (IllegalArgumentException exception) {
+            throw new OperatorRequestValidationException("operator request is invalid", exception);
+        }
+    }
+
+    private void validatePasswordOrThrow(String password) {
+        try {
+            passwordPolicy.validate(password);
+        } catch (IllegalArgumentException exception) {
+            throw new OperatorRequestValidationException("operator password is invalid", exception);
+        }
+    }
+
     private Operator canonicalOperator(CreateOperatorRequest request) {
         String username = OperatorNormalizer.normalizeUsername(request.username());
         String email = OperatorNormalizer.normalizeEmail(request.email());
         Operator candidate = Operator.create(
                 username, email, VALIDATION_PASSWORD_HASH, request.firstName(), request.lastName(), request.role());
         if (!validator.validate(candidate).isEmpty()) {
-            throw new IllegalArgumentException("operator request is invalid");
+            throw new OperatorRequestValidationException("operator request is invalid");
         }
         return candidate;
     }
@@ -213,10 +229,10 @@ public class OperatorAdminService {
 
     private static void validatePage(int page, int size) {
         if (page < 0) {
-            throw new IllegalArgumentException("page must be greater than or equal to zero");
+            throw new OperatorRequestValidationException("page must be greater than or equal to zero");
         }
         if (size < 1 || size > 100) {
-            throw new IllegalArgumentException("size must be between 1 and 100");
+            throw new OperatorRequestValidationException("size must be between 1 and 100");
         }
     }
 
@@ -226,27 +242,27 @@ public class OperatorAdminService {
             return new SortCriterion("username", Sort.Direction.ASC);
         }
         if (criteria.size() != 1) {
-            throw new IllegalArgumentException("exactly one sort criterion is supported");
+            throw new OperatorRequestValidationException("exactly one sort criterion is supported");
         }
         String raw = criteria.getFirst();
         if (raw == null) {
-            throw new IllegalArgumentException("sort must not be null");
+            throw new OperatorRequestValidationException("sort must not be null");
         }
         String[] parts = raw.split(",", -1);
         if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
-            throw new IllegalArgumentException("sort must use field,direction format");
+            throw new OperatorRequestValidationException("sort must use field,direction format");
         }
         String field =
                 switch (parts[0]) {
                     case "username", "email", "firstName", "lastName", "role", "status", "createdAt", "updatedAt" ->
                         parts[0];
-                    default -> throw new IllegalArgumentException("sort field is not supported");
+                    default -> throw new OperatorRequestValidationException("sort field is not supported");
                 };
         Sort.Direction direction =
                 switch (parts[1]) {
                     case "asc" -> Sort.Direction.ASC;
                     case "desc" -> Sort.Direction.DESC;
-                    default -> throw new IllegalArgumentException("sort direction is not supported");
+                    default -> throw new OperatorRequestValidationException("sort direction is not supported");
                 };
         return new SortCriterion(field, direction);
     }
