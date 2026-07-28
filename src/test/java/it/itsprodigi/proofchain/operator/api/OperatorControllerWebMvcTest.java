@@ -277,8 +277,7 @@ class OperatorControllerWebMvcTest extends PostgreSqlIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/v1/operators'].post.security[0].bearerAuth")
                         .exists())
-                .andExpect(jsonPath(
-                                "$.paths['/api/v1/operators'].post.responses['201'].content['application/json']")
+                .andExpect(jsonPath("$.paths['/api/v1/operators'].post.responses['201'].content['application/json']")
                         .exists())
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/operators'].post.responses['400'].content['application/problem+json']")
@@ -286,8 +285,7 @@ class OperatorControllerWebMvcTest extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/operators'].post.responses['409'].content['application/problem+json']")
                         .exists())
-                .andExpect(jsonPath(
-                                "$.paths['/api/v1/operators'].get.responses['200'].content['application/json']")
+                .andExpect(jsonPath("$.paths['/api/v1/operators'].get.responses['200'].content['application/json']")
                         .exists())
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/operators'].get.responses['400'].content['application/problem+json']")
