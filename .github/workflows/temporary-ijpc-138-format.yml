@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ijpc-138-admin-protected-operator-management
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
