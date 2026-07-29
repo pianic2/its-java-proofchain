@@ -3,6 +3,10 @@ package it.itsprodigi.proofchain.common.exception;
 import it.itsprodigi.proofchain.auth.application.InvalidCredentialsException;
 import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.auth.security.AuthenticatedOperator;
+import it.itsprodigi.proofchain.custodycase.application.CaseClosedException;
+import it.itsprodigi.proofchain.custodycase.application.CaseRequestValidationException;
+import it.itsprodigi.proofchain.custodycase.application.ConcurrentCaseModificationException;
+import it.itsprodigi.proofchain.custodycase.application.InvalidCaseStatusTransitionException;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
@@ -79,6 +83,34 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    @ExceptionHandler(ConcurrentCaseModificationException.class)
+    ProblemDetail handleConcurrentCaseModification(
+            ConcurrentCaseModificationException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CONCURRENT_MODIFICATION,
+                "Concurrent modification",
+                "The custody case was modified by another transaction. Retry using current data.",
+                request);
+    }
+
+    @ExceptionHandler(CaseClosedException.class)
+    ProblemDetail handleCaseClosed(CaseClosedException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT, ProblemTypes.CASE_CLOSED, "Custody case closed", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCaseStatusTransitionException.class)
+    ProblemDetail handleInvalidCaseStatusTransition(
+            InvalidCaseStatusTransitionException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.INVALID_CASE_STATUS_TRANSITION,
+                "Invalid custody case status transition",
+                exception.getMessage(),
+                request);
+    }
+
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail handleOptimisticLockingFailure(
             OptimisticLockingFailureException exception, HttpServletRequest request) {
@@ -151,6 +183,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OperatorRequestValidationException.class)
     ProblemDetail handleOperatorRequestValidation(
             OperatorRequestValidationException exception, HttpServletRequest request) {
+        return validationProblem(request);
+    }
+
+    @ExceptionHandler(CaseRequestValidationException.class)
+    ProblemDetail handleCaseRequestValidation(CaseRequestValidationException exception, HttpServletRequest request) {
         return validationProblem(request);
     }
 

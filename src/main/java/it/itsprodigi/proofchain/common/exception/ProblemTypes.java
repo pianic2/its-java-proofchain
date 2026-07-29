@@ -18,6 +18,9 @@ public final class ProblemTypes {
             URI.create("https://proofchain.dev/problems/operator-invariant-conflict");
     public static final URI CONCURRENT_MODIFICATION =
             URI.create("https://proofchain.dev/problems/concurrent-modification");
+    public static final URI CASE_CLOSED = URI.create("https://proofchain.dev/problems/case-closed");
+    public static final URI INVALID_CASE_STATUS_TRANSITION =
+            URI.create("https://proofchain.dev/problems/invalid-case-status-transition");
 
     private ProblemTypes() {}
 }
