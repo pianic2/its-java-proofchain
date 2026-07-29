@@ -104,6 +104,10 @@ src/main/java/it/itsprodigi/proofchain/
 
 Database migrations live under `src/main/resources/db/migration`. Tests mirror the application package structure; integration tests use the `*IT.java` suffix.
 
+## Technical documentation
+
+The [ProofChain backend codebase guide](./docs/technical/codebase-guide.md) documents the implemented structure, security and authentication flows, PostgreSQL persistence, transactions and concurrency, testing architecture, and CI. It describes the current codebase and Sprint 1 boundaries rather than future functionality.
+
 ## Documentation
 
 - [Contributing rules](./CONTRIBUTING.md)
