@@ -42,9 +42,7 @@ class CustodyCaseLockIT extends PostgreSqlIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        caseMembershipRepository.deleteAllInBatch();
-        custodyCaseRepository.deleteAllInBatch();
-        operatorRepository.deleteAllInBatch();
+        cleanDatabaseInDependencyOrder();
         executor = Executors.newFixedThreadPool(2);
     }
 
@@ -53,6 +51,13 @@ class CustodyCaseLockIT extends PostgreSqlIntegrationTest {
         if (executor != null) {
             executor.shutdownNow();
         }
+        cleanDatabaseInDependencyOrder();
+    }
+
+    private void cleanDatabaseInDependencyOrder() {
+        caseMembershipRepository.deleteAllInBatch();
+        custodyCaseRepository.deleteAllInBatch();
+        operatorRepository.deleteAllInBatch();
     }
 
     @Test

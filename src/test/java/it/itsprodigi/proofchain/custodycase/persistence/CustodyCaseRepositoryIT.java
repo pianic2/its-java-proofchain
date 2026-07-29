@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,15 @@ class CustodyCaseRepositoryIT extends PostgreSqlIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        cleanDatabaseInDependencyOrder();
+    }
+
+    @AfterEach
+    void cleanDatabaseAfterTest() {
+        cleanDatabaseInDependencyOrder();
+    }
+
+    private void cleanDatabaseInDependencyOrder() {
         caseMembershipRepository.deleteAllInBatch();
         custodyCaseRepository.deleteAllInBatch();
         operatorRepository.deleteAllInBatch();
