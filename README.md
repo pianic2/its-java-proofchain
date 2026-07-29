@@ -104,17 +104,15 @@ src/main/java/it/itsprodigi/proofchain/
 
 Database migrations live under `src/main/resources/db/migration`. Tests mirror the application package structure; integration tests use the `*IT.java` suffix.
 
-## Technical documentation
-
-The [ProofChain backend codebase guide](./docs/technical/codebase-guide.md) documents the implemented structure, security and authentication flows, PostgreSQL persistence, transactions and concurrency, testing architecture, and CI. It describes the current codebase and Sprint 1 boundaries rather than future functionality.
-
 ## Documentation
 
-- [Contributing rules](./CONTRIBUTING.md)
-- [Architecture decision records](./docs/adr/README.md)
-- [ADR-002 — Sprint 1 baseline](./docs/adr/ADR-002-sprint-1-baseline.md)
-- [ADR-003 — Authentication and operator security](./docs/adr/ADR-003-authentication-and-operator-security.md)
-- [MIT license](./LICENSE)
+Start with the [technical documentation home](./docs/README.md), then follow the feature guides for implementation details:
+
+- [Authentication](./docs/Auth.md) — login, JWT validation, database-backed request authentication, password controls, and audit events.
+- [Operator Management](./docs/Operators.md) — operator data, ADMIN endpoints, persistence, and concurrency invariants.
+- [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
+- [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
+- [MIT license](./LICENSE) — project licensing terms.
 
 ## License
 
