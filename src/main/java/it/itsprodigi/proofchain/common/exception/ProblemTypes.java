@@ -28,6 +28,11 @@ public final class ProblemTypes {
             URI.create("https://proofchain.dev/problems/admin-membership-not-assignable");
     public static final URI CONCURRENT_MEMBERSHIP_CONFLICT =
             URI.create("https://proofchain.dev/problems/concurrent-membership-conflict");
+    public static final URI DUPLICATE_EVIDENCE_REFERENCE_TAG =
+            URI.create("https://proofchain.dev/problems/duplicate-evidence-reference-tag");
+    public static final URI HOLDER_NOT_ELIGIBLE = URI.create("https://proofchain.dev/problems/holder-not-eligible");
+    public static final URI PAYLOAD_TOO_LARGE = URI.create("https://proofchain.dev/problems/payload-too-large");
+    public static final URI STORAGE_FAILURE = URI.create("https://proofchain.dev/problems/storage-failure");
 
     private ProblemTypes() {}
 }

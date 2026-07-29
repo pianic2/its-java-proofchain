@@ -9,6 +9,7 @@ import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +55,19 @@ class DigitalEvidenceTest {
         assertThat(evidence.getCreatedAt()).isEqualTo(evidence.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
         assertThat(evidence.getUpdatedAt()).isEqualTo(evidence.getCreatedAt());
         assertThat(evidence.getVersion()).isZero();
+    }
+
+    @Test
+    void acceptsAnExplicitEvidenceIdAndRejectsNull() {
+        EvidenceFixture fixture = new EvidenceFixture();
+        UUID explicitId = UUID.fromString("123e4567-e89b-42d3-a456-426614174001");
+
+        DigitalEvidence explicit = fixture.create(explicitId);
+
+        assertThat(explicit.getId()).isEqualTo(explicitId);
+        assertThatThrownBy(() -> fixture.create(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("id must not be null");
     }
 
     @Test
@@ -152,7 +166,6 @@ class DigitalEvidenceTest {
             assertInvalid(fixture -> fixture.originalFilename = filename);
         }
         assertInvalid(fixture -> fixture.originalFilename = "x".repeat(256));
-        assertInvalid(fixture -> fixture.originalFilename = "file." + "x".repeat(33));
         assertInvalid(fixture -> fixture.mediaType = "x".repeat(256));
         assertInvalid(fixture -> fixture.mediaType = "application/\njson");
         assertInvalid(fixture -> fixture.fileSize = 0);
@@ -265,6 +278,10 @@ class DigitalEvidenceTest {
         assertThat(evidence.toString())
                 .contains(evidence.getId().toString(), "EV-001", "IN_CUSTODY")
                 .doesNotContain(CONTENT_SHA_256, CONTEXTUAL_SHA_256, fixture.storageKey);
+
+        fixture = new EvidenceFixture();
+        fixture.originalFilename = "capture." + "x".repeat(33);
+        assertThat(fixture.create().getFileExtension()).isNull();
     }
 
     private static void assertInvalid(Consumer<EvidenceFixture> mutation) {
@@ -329,6 +346,35 @@ class DigitalEvidenceTest {
 
         private DigitalEvidence create() {
             return DigitalEvidence.create(
+                    custodyCase,
+                    currentHolder,
+                    uploadedBy,
+                    referenceTag,
+                    title,
+                    description,
+                    sourceType,
+                    sourceDescription,
+                    sourceManufacturer,
+                    sourceModel,
+                    sourceSerialNumber,
+                    sourceLogicalIdentifier,
+                    acquisitionMethod,
+                    acquisitionLocation,
+                    acquisitionToolName,
+                    acquisitionToolVersion,
+                    acquisitionNotes,
+                    acquiredAt,
+                    originalFilename,
+                    mediaType,
+                    fileSize,
+                    contentSha256,
+                    contextualSha256,
+                    storageKey);
+        }
+
+        private DigitalEvidence create(UUID id) {
+            return DigitalEvidence.create(
+                    id,
                     custodyCase,
                     currentHolder,
                     uploadedBy,

@@ -169,6 +169,7 @@ public class DigitalEvidence {
     protected DigitalEvidence() {}
 
     private DigitalEvidence(
+            UUID id,
             CustodyCase custodyCase,
             Operator currentHolder,
             Operator uploadedBy,
@@ -193,7 +194,7 @@ public class DigitalEvidence {
             String contentSha256,
             String contextualSha256,
             String storageKey) {
-        id = UUID.randomUUID();
+        this.id = Objects.requireNonNull(id, "id must not be null");
         this.custodyCase = Objects.requireNonNull(custodyCase, "custodyCase must not be null");
         this.currentHolder = Objects.requireNonNull(currentHolder, "currentHolder must not be null");
         this.uploadedBy = Objects.requireNonNull(uploadedBy, "uploadedBy must not be null");
@@ -251,7 +252,62 @@ public class DigitalEvidence {
             String contentSha256,
             String contextualSha256,
             String storageKey) {
+        return create(
+                UUID.randomUUID(),
+                custodyCase,
+                currentHolder,
+                uploadedBy,
+                referenceTag,
+                title,
+                description,
+                sourceType,
+                sourceDescription,
+                sourceManufacturer,
+                sourceModel,
+                sourceSerialNumber,
+                sourceLogicalIdentifier,
+                acquisitionMethod,
+                acquisitionLocation,
+                acquisitionToolName,
+                acquisitionToolVersion,
+                acquisitionNotes,
+                acquiredAt,
+                originalFilename,
+                mediaType,
+                fileSize,
+                contentSha256,
+                contextualSha256,
+                storageKey);
+    }
+
+    public static DigitalEvidence create(
+            UUID id,
+            CustodyCase custodyCase,
+            Operator currentHolder,
+            Operator uploadedBy,
+            String referenceTag,
+            String title,
+            String description,
+            SourceType sourceType,
+            String sourceDescription,
+            String sourceManufacturer,
+            String sourceModel,
+            String sourceSerialNumber,
+            String sourceLogicalIdentifier,
+            AcquisitionMethod acquisitionMethod,
+            String acquisitionLocation,
+            String acquisitionToolName,
+            String acquisitionToolVersion,
+            String acquisitionNotes,
+            Instant acquiredAt,
+            String originalFilename,
+            String mediaType,
+            long fileSize,
+            String contentSha256,
+            String contextualSha256,
+            String storageKey) {
         return new DigitalEvidence(
+                id,
                 custodyCase,
                 currentHolder,
                 uploadedBy,
@@ -542,7 +598,7 @@ public class DigitalEvidence {
         }
         String extension = DigitalEvidenceNormalizer.normalizeExtension(originalFilename.substring(separator + 1));
         if (extension == null || extension.length() > 32) {
-            throw new IllegalArgumentException("fileExtension must not exceed 32 characters");
+            return null;
         }
         return extension;
     }

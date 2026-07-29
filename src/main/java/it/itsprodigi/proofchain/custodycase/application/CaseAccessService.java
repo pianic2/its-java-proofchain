@@ -59,6 +59,17 @@ public class CaseAccessService {
         return requireCaseManagerPermission(caseId, actor);
     }
 
+    @Transactional(readOnly = true)
+    public CustodyCase requireEvidenceRegistrationPermission(UUID caseId, AuthenticatedOperator actor) {
+        CustodyCase custodyCase = requireReadableCase(caseId, actor);
+        if (actor.role() != OperatorRole.ADMIN
+                && actor.role() != OperatorRole.CASE_MANAGER
+                && actor.role() != OperatorRole.EVIDENCE_OFFICER) {
+            throw new AccessDeniedException("The visible custody case cannot receive evidence from this operator.");
+        }
+        return custodyCase;
+    }
+
     private CustodyCase requireCaseManagerPermission(UUID caseId, AuthenticatedOperator actor) {
         CustodyCase custodyCase = requireReadableCase(caseId, actor);
         if (actor.role() != OperatorRole.ADMIN && actor.role() != OperatorRole.CASE_MANAGER) {

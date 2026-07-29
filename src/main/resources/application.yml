@@ -11,7 +11,8 @@ spring:
   servlet:
     multipart:
       max-file-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}
-      max-request-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}
+      # Multipart framing and the JSON metadata part require overhead beyond the file limit.
+      max-request-size: ${PROOFCHAIN_MAX_REQUEST_SIZE:51MB}
   flyway:
     enabled: true
     baseline-on-migrate: false
