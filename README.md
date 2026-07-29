@@ -2,11 +2,11 @@
 
 ## Project overview
 
-ProofChain is a time-bounded ITS project implemented as a Spring Boot modular monolith. It provides a reviewable foundation for custody cases and the later recording of evidence and custody events.
+ProofChain is a time-bounded ITS project implemented as a Spring Boot modular monolith. It provides a reviewable foundation for custody cases and the registration, integrity hashing, discovery, and retrieval of digital evidence.
 
 ## MVP boundaries
 
-The current Sprint 2 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization, ADMIN-protected operator management, custody case lifecycle, and contextual case membership. Evidence ingestion, custody events, file processing, and production operations remain outside the implemented scope.
+The current Sprint 3 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization, ADMIN-protected operator management, custody case lifecycle, contextual case membership, and four digital-evidence operations: register, list, inspect, and download. Content is stored on the local filesystem and bound to persisted metadata by reproducible SHA-256 values. Custody events, evidence mutation endpoints, background reconciliation, and production storage operations remain outside the implemented scope.
 
 ## Technology stack
 
@@ -49,7 +49,7 @@ source .env
 set +a
 ```
 
-The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The MVP upload limit defaults to `50MB` and is configurable through `PROOFCHAIN_MAX_FILE_SIZE`. JWT and optional bootstrap-admin settings are listed in [.env.example](./.env.example) and described in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
+The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The evidence file limit defaults to `50MB` through `PROOFCHAIN_MAX_FILE_SIZE`; the complete multipart request defaults to `51MB` through `PROOFCHAIN_MAX_REQUEST_SIZE` so JSON metadata and framing have bounded overhead. JWT and optional bootstrap-admin settings are listed in [.env.example](./.env.example) and described in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
 
 ## Database startup
 
@@ -73,6 +73,8 @@ The `local` Spring profile is enabled by default. After PostgreSQL is running, s
 Authentication is available at `POST /api/v1/auth/login` and `GET /api/v1/auth/me`. Operator administration is exposed under `/api/v1/operators` for authenticated ADMIN operators. Authentication events are written to the ignored local file `auth.log`; the complete security boundary is recorded in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
 
 Custody case lifecycle and membership are exposed under `/api/v1/cases`. ADMIN operators have global case access; other authenticated roles can read their assigned cases, while case mutations are restricted to ADMIN operators and assigned CASE_MANAGER operators. See [Custody Cases](./docs/CustodyCases.md) for the exact contract.
+
+Digital evidence is registered with `POST /api/v1/cases/{caseId}/evidences`, listed with `GET /api/v1/cases/{caseId}/evidences`, inspected with `GET /api/v1/evidences/{evidenceId}`, and downloaded with `GET /api/v1/evidences/{evidenceId}/download`. See [Digital Evidence](./docs/DigitalEvidence.md) for the multipart contract, access rules, hashes, filesystem safety, paging, downloads, and residual limits.
 
 ## Tests and quality gate
 
@@ -113,6 +115,7 @@ Start with the [technical documentation home](./docs/README.md), then follow the
 - [Authentication](./docs/Auth.md) — login, JWT validation, database-backed request authentication, password controls, and audit events.
 - [Operator Management](./docs/Operators.md) — operator data, ADMIN endpoints, persistence, and concurrency invariants.
 - [Custody Cases](./docs/CustodyCases.md) — case lifecycle, contextual membership, REST contracts, persistence, and concurrency.
+- [Digital Evidence](./docs/DigitalEvidence.md) — domain metadata, registration, integrity hashes, filesystem storage, read APIs, and failure contracts.
 - [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
 - [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
 - [MIT license](./LICENSE) — project licensing terms.

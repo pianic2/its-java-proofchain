@@ -36,7 +36,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/cases/{caseId}/evidences")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Digital evidence", description = "Digital evidence registration APIs.")
+@Tag(name = "Digital evidence", description = "Digital evidence registration, metadata and content APIs.")
 public class EvidenceController {
 
     private static final Set<String> REQUIRED_PARTS = Set.of("metadata", "file");
@@ -52,13 +52,17 @@ public class EvidenceController {
             operationId = "registerDigitalEvidence",
             summary = "Register digital evidence",
             description =
-                    "Atomically stages file bytes, registers evidence metadata in an OPEN custody case, and finalizes storage. The multipart request must contain exactly metadata (application/json) and file (binary).")
+                    "Atomically stages and hashes file bytes, registers metadata in an OPEN custody case, and finalizes storage. Available to ADMIN globally and assigned CASE_MANAGER or EVIDENCE_OFFICER operators; inaccessible cases are hidden as 404. The multipart request contains exactly metadata (application/json) and file (binary). Identical bytes create independent evidence records and are not deduplicated.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "201",
                 description = "Digital evidence registered",
                 headers =
-                        @Header(name = "Location", required = true, schema = @Schema(type = "string", format = "uri")),
+                        @Header(
+                                name = "Location",
+                                description = "Canonical detail URI of the registered evidence",
+                                required = true,
+                                schema = @Schema(type = "string", format = "uri")),
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -115,9 +119,21 @@ public class EvidenceController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<EvidenceResponse> register(
-            @Parameter(description = "Custody case identifier") @PathVariable UUID caseId,
-            @Valid @RequestPart("metadata") CreateEvidenceRequest metadata,
-            @Parameter(description = "Evidence content", schema = @Schema(type = "string", format = "binary"))
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @Parameter(
+                            description =
+                                    "Strict JSON metadata part. Unknown properties and duplicate JSON keys are rejected.",
+                            required = true)
+                    @Valid
+                    @RequestPart("metadata")
+                    CreateEvidenceRequest metadata,
+            @Parameter(
+                            description =
+                                    "Arbitrary non-empty binary content. The configured file limit defaults to 50 MB.",
+                            required = true,
+                            schema = @Schema(type = "string", format = "binary"))
                     @RequestPart("file")
                     MultipartFile file,
             HttpServletRequest servletRequest,

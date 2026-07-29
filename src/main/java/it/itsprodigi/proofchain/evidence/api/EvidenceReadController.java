@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Digital evidence")
+@Tag(name = "Digital evidence", description = "Digital evidence registration, metadata and content APIs.")
 public class EvidenceReadController {
 
     private static final MediaType DEFAULT_MEDIA_TYPE = MediaType.APPLICATION_OCTET_STREAM;
@@ -50,7 +50,7 @@ public class EvidenceReadController {
             operationId = "listDigitalEvidence",
             summary = "List evidence in a visible custody case",
             description =
-                    "Available to ADMIN callers and every assigned case member, including AUDITOR. Results are always ordered by createdAt descending and id ascending; client-controlled sorting is rejected.")
+                    "Available to ADMIN callers and every assigned case member, including AUDITOR. Closed cases remain readable. Paging defaults to page 0 and size 20, with a maximum size of 100. Results are always ordered by createdAt descending and id ascending; client sorting and evidence filters are not supported.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -82,7 +82,9 @@ public class EvidenceReadController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public EvidencePageResponse list(
-            @Parameter(description = "Custody case identifier") @PathVariable UUID caseId,
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
             @Parameter(description = "Zero-based page index", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size from 1 to 100", example = "20") @RequestParam(defaultValue = "20")
                     int size,
@@ -100,7 +102,7 @@ public class EvidenceReadController {
             operationId = "getDigitalEvidence",
             summary = "Get visible evidence details",
             description =
-                    "Returns complete evidence metadata to ADMIN callers or any assigned member of its custody case. Existing but inaccessible evidence is indistinguishable from missing evidence.")
+                    "Returns complete evidence metadata to ADMIN callers or any assigned member of its custody case. Closed cases and RELEASED evidence remain readable. Existing but inaccessible evidence is indistinguishable from missing evidence; storage keys and persistence versions are never returned.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -132,7 +134,9 @@ public class EvidenceReadController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public EvidenceResponse get(
-            @Parameter(description = "Digital evidence identifier") @PathVariable UUID evidenceId,
+            @Parameter(description = "Digital evidence identifier", example = "6f674949-c508-49bf-a160-ef720f9b51ee")
+                    @PathVariable
+                    UUID evidenceId,
             @AuthenticationPrincipal AuthenticatedOperator actor) {
         return service.get(evidenceId, actor);
     }
@@ -142,7 +146,7 @@ public class EvidenceReadController {
             operationId = "downloadDigitalEvidence",
             summary = "Download visible evidence content",
             description =
-                    "Streams the complete stored content outside the database transaction. Range is intentionally ignored: every successful response is 200 with the complete representation.")
+                    "Streams the exact stored bytes as an attachment outside the database transaction. Available to ADMIN callers and any assigned case member for IN_CUSTODY, SEALED or RELEASED evidence, including closed cases. Range is ignored and every success is a complete 200 response; ETag, conditional requests and implicit integrity verification are not supported.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -188,7 +192,9 @@ public class EvidenceReadController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<InputStreamResource> download(
-            @Parameter(description = "Digital evidence identifier") @PathVariable UUID evidenceId,
+            @Parameter(description = "Digital evidence identifier", example = "6f674949-c508-49bf-a160-ef720f9b51ee")
+                    @PathVariable
+                    UUID evidenceId,
             @Parameter(
                             name = HttpHeaders.RANGE,
                             in = ParameterIn.HEADER,

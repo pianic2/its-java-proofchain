@@ -335,12 +335,17 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void documentsTheThreeReadOperationsAndExactResponsePolicies() throws Exception {
-        String list = "$.paths['/api/v1/cases/{caseId}/evidences'].get";
-        String detail = "$.paths['/api/v1/evidences/{evidenceId}'].get";
-        String download = "$.paths['/api/v1/evidences/{evidenceId}/download'].get";
-        mockMvc.perform(get("/v3/api-docs"))
+    void documentsTheFourCanonicalEvidenceOperationsAndExactResponsePolicies() throws Exception {
+        String caseEvidencePath = "/api/v1/cases/{caseId}/evidences";
+        String detailPath = "/api/v1/evidences/{evidenceId}";
+        String downloadPath = "/api/v1/evidences/{evidenceId}/download";
+        String registration = "$.paths['" + caseEvidencePath + "'].post";
+        String list = "$.paths['" + caseEvidencePath + "'].get";
+        String detail = "$.paths['" + detailPath + "'].get";
+        String download = "$.paths['" + downloadPath + "'].get";
+        var result = mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath(registration + ".operationId").value("registerDigitalEvidence"))
                 .andExpect(jsonPath(list + ".responses['200']").exists())
                 .andExpect(jsonPath(list + ".responses['400']").exists())
                 .andExpect(jsonPath(list + ".responses['401']").exists())
@@ -362,7 +367,19 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath(download + ".responses['404']").exists())
                 .andExpect(jsonPath(download + ".responses['500']").exists())
                 .andExpect(jsonPath("$.components.schemas.EvidenceSummaryResponse.properties.*", hasSize(18)))
-                .andExpect(jsonPath("$.components.schemas.EvidencePageResponse.properties.*", hasSize(5)));
+                .andExpect(jsonPath("$.components.schemas.EvidencePageResponse.properties.*", hasSize(5)))
+                .andReturn();
+
+        var paths = tools.jackson.databind.json.JsonMapper.builder()
+                .build()
+                .readTree(result.getResponse().getContentAsString())
+                .get("paths");
+        assertThat(paths.propertyNames())
+                .filteredOn(path -> path.contains("/evidences"))
+                .containsExactlyInAnyOrder(caseEvidencePath, detailPath, downloadPath);
+        assertThat(paths.get(caseEvidencePath).propertyNames()).containsExactlyInAnyOrder("get", "post");
+        assertThat(paths.get(detailPath).propertyNames()).containsExactly("get");
+        assertThat(paths.get(downloadPath).propertyNames()).containsExactly("get");
     }
 
     private ResultActions download(UUID evidenceId, Operator reader, String range) throws Exception {
