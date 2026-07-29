@@ -83,7 +83,7 @@ class DigitalEvidenceRepositoryIT extends PostgreSqlIntegrationTest {
     void flywayCreatesTheSchemaIndexesAndNoCascadeForeignKeysThatHibernateValidates() {
         assertThat(environment.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
         assertThat(jdbcTemplate.queryForObject(
-                        "SELECT success FROM flyway_schema_history WHERE version = '3'", Boolean.class))
+                        "SELECT success FROM flyway_schema_history WHERE version = '5'", Boolean.class))
                 .isTrue();
 
         Map<String, ColumnDefinition> columns = columnsFor("digital_evidence");
@@ -98,6 +98,8 @@ class DigitalEvidenceRepositoryIT extends PostgreSqlIntegrationTest {
                 .containsEntry("file_size", new ColumnDefinition("bigint", null, null))
                 .containsEntry("content_sha256", new ColumnDefinition("character varying", 64, null))
                 .containsEntry("contextual_sha256", new ColumnDefinition("character varying", 64, null))
+                .containsEntry("custody_event_count", new ColumnDefinition("bigint", null, null))
+                .containsEntry("custody_chain_head_hash", new ColumnDefinition("character", 64, null))
                 .containsEntry("created_at", new ColumnDefinition("timestamp with time zone", null, 6))
                 .containsEntry("updated_at", new ColumnDefinition("timestamp with time zone", null, 6))
                 .containsEntry("version", new ColumnDefinition("bigint", null, null));
@@ -130,6 +132,8 @@ class DigitalEvidenceRepositoryIT extends PostgreSqlIntegrationTest {
                         "content_sha256",
                         "contextual_sha256",
                         "storage_key",
+                        "custody_event_count",
+                        "custody_chain_head_hash",
                         "created_at",
                         "updated_at",
                         "version");
@@ -148,6 +152,9 @@ class DigitalEvidenceRepositoryIT extends PostgreSqlIntegrationTest {
                         "ck_digital_evidence_content_sha256",
                         "ck_digital_evidence_contextual_sha256",
                         "ck_digital_evidence_storage_key",
+                        "ck_digital_evidence_custody_event_count",
+                        "ck_digital_evidence_custody_chain_head_hash",
+                        "ck_digital_evidence_custody_chain_empty_head",
                         "ck_digital_evidence_version_non_negative");
 
         Map<String, String> deleteActions = jdbcTemplate
@@ -244,6 +251,11 @@ class DigitalEvidenceRepositoryIT extends PostgreSqlIntegrationTest {
                 "UPDATE digital_evidence SET acquired_at = created_at + INTERVAL '1 second' WHERE id = ?", evidenceId);
         assertDatabaseRejects("UPDATE digital_evidence SET storage_key = '../escape' WHERE id = ?", evidenceId);
         assertDatabaseRejects("UPDATE digital_evidence SET original_filename = '../escape' WHERE id = ?", evidenceId);
+        assertDatabaseRejects("UPDATE digital_evidence SET custody_event_count = -1 WHERE id = ?", evidenceId);
+        assertDatabaseRejects(
+                "UPDATE digital_evidence SET custody_chain_head_hash = ? WHERE id = ?", "A".repeat(64), evidenceId);
+        assertDatabaseRejects(
+                "UPDATE digital_evidence SET custody_chain_head_hash = ? WHERE id = ?", "c".repeat(64), evidenceId);
         assertDatabaseRejects("UPDATE digital_evidence SET version = -1 WHERE id = ?", evidenceId);
     }
 

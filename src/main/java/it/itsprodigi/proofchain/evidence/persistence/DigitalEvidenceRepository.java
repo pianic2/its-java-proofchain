@@ -2,6 +2,7 @@ package it.itsprodigi.proofchain.evidence.persistence;
 
 import it.itsprodigi.proofchain.evidence.domain.DigitalEvidence;
 import it.itsprodigi.proofchain.evidence.domain.DigitalEvidenceNormalizer;
+import jakarta.persistence.LockModeType;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,11 +10,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 public interface DigitalEvidenceRepository extends JpaRepository<DigitalEvidence, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT evidence FROM DigitalEvidence evidence WHERE evidence.id = :evidenceId")
+    Optional<DigitalEvidence> findByIdForCustodyEventAppend(@Param("evidenceId") UUID evidenceId);
 
     default boolean existsByCaseIdAndReferenceTag(UUID caseId, String referenceTag) {
         Objects.requireNonNull(caseId, "caseId must not be null");

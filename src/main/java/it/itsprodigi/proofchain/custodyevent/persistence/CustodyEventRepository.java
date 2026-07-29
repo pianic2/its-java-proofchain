@@ -16,6 +16,10 @@ public interface CustodyEventRepository extends Repository<CustodyEvent, UUID> {
 
     <S extends CustodyEvent> S save(S event);
 
+    <S extends CustodyEvent> S saveAndFlush(S event);
+
+    boolean existsByEvidenceId(UUID evidenceId);
+
     @Transactional(readOnly = true)
     @EntityGraph(attributePaths = {"custodyCase", "evidence", "operator"})
     List<CustodyEvent> findAllByEvidenceIdOrderBySequenceNumberAsc(UUID evidenceId);

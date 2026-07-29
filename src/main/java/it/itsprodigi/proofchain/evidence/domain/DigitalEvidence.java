@@ -23,6 +23,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "digital_evidence")
@@ -31,6 +33,7 @@ public class DigitalEvidence {
     private static final String REFERENCE_TAG_PATTERN = "[A-Z0-9][A-Z0-9._-]{0,63}";
     private static final String SHA_256_PATTERN = "[0-9a-f]{64}";
     private static final String DEFAULT_MEDIA_TYPE = "application/octet-stream";
+    private static final String ZERO_CUSTODY_HASH = "0".repeat(64);
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -153,6 +156,17 @@ public class DigitalEvidence {
     @Column(name = "storage_key", nullable = false, length = 500, updatable = false)
     private String storageKey;
 
+    @PositiveOrZero
+    @Column(name = "custody_event_count", nullable = false)
+    private long custodyEventCount;
+
+    @NotBlank
+    @Size(min = 64, max = 64)
+    @Pattern(regexp = SHA_256_PATTERN)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "custody_chain_head_hash", nullable = false, length = 64, columnDefinition = "char(64)")
+    private String custodyChainHeadHash;
+
     @NotNull
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -219,6 +233,8 @@ public class DigitalEvidence {
         this.contentSha256 = validSha256(contentSha256, "contentSha256");
         this.contextualSha256 = validSha256(contextualSha256, "contextualSha256");
         this.storageKey = validStorageKey(storageKey);
+        custodyEventCount = 0L;
+        custodyChainHeadHash = ZERO_CUSTODY_HASH;
         status = EvidenceStatus.IN_CUSTODY;
         Instant now = nowAtMicrosecondPrecision();
         createdAt = now;
@@ -516,6 +532,26 @@ public class DigitalEvidence {
 
     public String getStorageKey() {
         return storageKey;
+    }
+
+    public long getCustodyEventCount() {
+        return custodyEventCount;
+    }
+
+    public String getCustodyChainHeadHash() {
+        return custodyChainHeadHash;
+    }
+
+    public void advanceCustodyChain(long sequenceNumber, String eventHash) {
+        long expectedSequence = Math.addExact(custodyEventCount, 1L);
+        if (sequenceNumber != expectedSequence) {
+            throw new IllegalArgumentException("sequenceNumber must advance the custody chain by one");
+        }
+        if (custodyEventCount == 0 && !ZERO_CUSTODY_HASH.equals(custodyChainHeadHash)) {
+            throw new IllegalStateException("an empty custody chain must have the zero hash head");
+        }
+        custodyChainHeadHash = validSha256(eventHash, "eventHash");
+        custodyEventCount = sequenceNumber;
     }
 
     public Instant getCreatedAt() {

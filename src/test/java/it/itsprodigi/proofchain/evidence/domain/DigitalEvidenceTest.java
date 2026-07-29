@@ -52,9 +52,28 @@ class DigitalEvidenceTest {
         assertThat(evidence.getContentSha256()).isEqualTo(CONTENT_SHA_256);
         assertThat(evidence.getContextualSha256()).isEqualTo(CONTEXTUAL_SHA_256);
         assertThat(evidence.getStorageKey()).isEqualTo(fixture.storageKey);
+        assertThat(evidence.getCustodyEventCount()).isZero();
+        assertThat(evidence.getCustodyChainHeadHash()).isEqualTo("0".repeat(64));
         assertThat(evidence.getCreatedAt()).isEqualTo(evidence.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
         assertThat(evidence.getUpdatedAt()).isEqualTo(evidence.getCreatedAt());
         assertThat(evidence.getVersion()).isZero();
+    }
+
+    @Test
+    void advancesTheInternalCustodyChainExactlyOncePerSequence() {
+        DigitalEvidence evidence = new EvidenceFixture().create();
+
+        evidence.advanceCustodyChain(1, "c".repeat(64));
+        evidence.advanceCustodyChain(2, "d".repeat(64));
+
+        assertThat(evidence.getCustodyEventCount()).isEqualTo(2);
+        assertThat(evidence.getCustodyChainHeadHash()).isEqualTo("d".repeat(64));
+        assertThatThrownBy(() -> evidence.advanceCustodyChain(4, "e".repeat(64)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("sequenceNumber must advance the custody chain by one");
+        assertThatThrownBy(() -> evidence.advanceCustodyChain(3, "E".repeat(64)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("eventHash");
     }
 
     @Test

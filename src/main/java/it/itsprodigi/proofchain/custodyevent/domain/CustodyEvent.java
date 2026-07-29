@@ -101,7 +101,7 @@ public class CustodyEvent {
             EventType eventType,
             Instant occurredAt,
             int payloadVersion,
-            JsonNode payloadJson,
+            String payloadJson,
             String previousHash,
             String eventHash,
             int hashVersion) {
@@ -120,7 +120,7 @@ public class CustodyEvent {
         this.eventType = Objects.requireNonNull(eventType, "eventType must not be null");
         this.occurredAt = validOccurredAt(occurredAt);
         this.payloadVersion = validVersion(payloadVersion, "payloadVersion");
-        this.payloadJson = validPayload(payloadJson);
+        this.payloadJson = validCanonicalPayload(payloadJson);
         this.previousHash = validSha256(previousHash, "previousHash");
         this.eventHash = validSha256(eventHash, "eventHash");
         this.hashVersion = validVersion(hashVersion, "hashVersion");
@@ -137,6 +137,36 @@ public class CustodyEvent {
             Instant occurredAt,
             int payloadVersion,
             JsonNode payloadJson,
+            String previousHash,
+            String eventHash,
+            int hashVersion) {
+        return new CustodyEvent(
+                id,
+                custodyCase,
+                evidence,
+                operator,
+                actorRole,
+                sequenceNumber,
+                eventType,
+                occurredAt,
+                payloadVersion,
+                validPayload(payloadJson),
+                previousHash,
+                eventHash,
+                hashVersion);
+    }
+
+    static CustodyEvent createCanonical(
+            UUID id,
+            CustodyCase custodyCase,
+            DigitalEvidence evidence,
+            Operator operator,
+            OperatorRole actorRole,
+            long sequenceNumber,
+            EventType eventType,
+            Instant occurredAt,
+            int payloadVersion,
+            String payloadJson,
             String previousHash,
             String eventHash,
             int hashVersion) {
@@ -265,6 +295,14 @@ public class CustodyEvent {
             throw new IllegalArgumentException("payloadJson must be an object");
         }
         return value.toString();
+    }
+
+    private static String validCanonicalPayload(String payloadJson) {
+        String value = Objects.requireNonNull(payloadJson, "payloadJson must not be null");
+        if (value.length() < 2 || value.charAt(0) != '{' || value.charAt(value.length() - 1) != '}') {
+            throw new IllegalArgumentException("payloadJson must be a canonical JSON object");
+        }
+        return value;
     }
 
     private static String validSha256(String value, String fieldName) {
