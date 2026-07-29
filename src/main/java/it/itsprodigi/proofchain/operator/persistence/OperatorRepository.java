@@ -36,4 +36,8 @@ public interface OperatorRepository extends JpaRepository<Operator, UUID> {
             ORDER BY operator.id
             """)
     List<Operator> lockActiveAdmins();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT operator FROM Operator operator WHERE operator.id = :operatorId")
+    Optional<Operator> findByIdForUpdate(UUID operatorId);
 }

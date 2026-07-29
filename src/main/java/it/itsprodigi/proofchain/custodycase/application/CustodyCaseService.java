@@ -13,7 +13,10 @@ import it.itsprodigi.proofchain.custodycase.domain.CustodyCase;
 import it.itsprodigi.proofchain.custodycase.persistence.CaseMembershipRepository;
 import it.itsprodigi.proofchain.custodycase.persistence.CustodyCaseRepository;
 import it.itsprodigi.proofchain.operator.domain.Operator;
+import it.itsprodigi.proofchain.operator.domain.OperatorRole;
+import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
 import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.OptimisticLockException;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +24,7 @@ import java.util.UUID;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,18 +37,21 @@ public class CustodyCaseService {
     private final OperatorRepository operators;
     private final CaseAccessService access;
     private final CaseMapper mapper;
+    private final EntityManager entityManager;
 
     public CustodyCaseService(
             CustodyCaseRepository custodyCases,
             CaseMembershipRepository memberships,
             OperatorRepository operators,
             CaseAccessService access,
-            CaseMapper mapper) {
+            CaseMapper mapper,
+            EntityManager entityManager) {
         this.custodyCases = Objects.requireNonNull(custodyCases, "custodyCases must not be null");
         this.memberships = Objects.requireNonNull(memberships, "memberships must not be null");
         this.operators = Objects.requireNonNull(operators, "operators must not be null");
         this.access = Objects.requireNonNull(access, "access must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
+        this.entityManager = Objects.requireNonNull(entityManager, "entityManager must not be null");
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'CASE_MANAGER')")
@@ -52,7 +59,12 @@ public class CustodyCaseService {
     public CaseResponse create(CreateCaseRequest request, AuthenticatedOperator actor) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(actor, "actor must not be null");
-        Operator creator = operators.findById(actor.id()).orElseThrow(ResourceNotFoundException::new);
+        Operator creator = operators.findByIdForUpdate(actor.id()).orElseThrow(ResourceNotFoundException::new);
+        entityManager.refresh(creator);
+        if (creator.getStatus() != OperatorStatus.ACTIVE
+                || creator.getRole() != OperatorRole.ADMIN && creator.getRole() != OperatorRole.CASE_MANAGER) {
+            throw new AccessDeniedException("The current operator cannot create custody cases.");
+        }
         CustodyCase custodyCase;
         try {
             custodyCase = CustodyCase.create(

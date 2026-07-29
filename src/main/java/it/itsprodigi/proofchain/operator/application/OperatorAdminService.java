@@ -1,5 +1,8 @@
 package it.itsprodigi.proofchain.operator.application;
 
+import it.itsprodigi.proofchain.custodycase.application.AffectedCaseSetChangedException;
+import it.itsprodigi.proofchain.custodycase.application.ResponsibleCaseManagerGuard;
+import it.itsprodigi.proofchain.custodycase.domain.CustodyCase;
 import it.itsprodigi.proofchain.operator.api.CreateOperatorRequest;
 import it.itsprodigi.proofchain.operator.api.OperatorDetailResponse;
 import it.itsprodigi.proofchain.operator.api.OperatorPageResponse;
@@ -19,6 +22,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -35,12 +39,15 @@ public class OperatorAdminService {
     private static final String VALIDATION_PASSWORD_HASH =
             "$2a$10$01234567890123456789012345678901234567890123456789012";
     private static final Set<String> DUPLICATE_CONSTRAINTS = Set.of("uk_operators_username", "uk_operators_email");
+    private static final int MAX_STABLE_SET_ATTEMPTS = 3;
 
     private final OperatorRepository operators;
     private final OperatorMapper mapper;
     private final PasswordPolicy passwordPolicy;
     private final PasswordEncoder passwordEncoder;
     private final Validator validator;
+    private final ResponsibleCaseManagerGuard responsibleCaseManagers;
+    private final OperatorMutationTransaction mutationTransaction;
     private final EntityManager entityManager;
 
     public OperatorAdminService(
@@ -49,12 +56,17 @@ public class OperatorAdminService {
             PasswordPolicy passwordPolicy,
             PasswordEncoder passwordEncoder,
             Validator validator,
+            ResponsibleCaseManagerGuard responsibleCaseManagers,
+            OperatorMutationTransaction mutationTransaction,
             EntityManager entityManager) {
         this.operators = Objects.requireNonNull(operators, "operators must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
         this.passwordPolicy = Objects.requireNonNull(passwordPolicy, "passwordPolicy must not be null");
         this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "passwordEncoder must not be null");
         this.validator = Objects.requireNonNull(validator, "validator must not be null");
+        this.responsibleCaseManagers =
+                Objects.requireNonNull(responsibleCaseManagers, "responsibleCaseManagers must not be null");
+        this.mutationTransaction = Objects.requireNonNull(mutationTransaction, "mutationTransaction must not be null");
         this.entityManager = Objects.requireNonNull(entityManager, "entityManager must not be null");
     }
 
@@ -106,21 +118,32 @@ public class OperatorAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @Transactional
     public OperatorDetailResponse updateRole(UUID id, UpdateOperatorRoleRequest request, UUID actorId) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(actorId, "actorId must not be null");
+        return executeWithStableAffectedCases(() -> updateRoleInTransaction(id, request, actorId));
+    }
+
+    private OperatorDetailResponse updateRoleInTransaction(UUID id, UpdateOperatorRoleRequest request, UUID actorId) {
         Operator target = findOperator(id);
         if (request.role() == target.getRole()) {
             return mapper.toDetail(target);
         }
 
-        boolean mayDemoteActiveAdmin = target.getRole() == OperatorRole.ADMIN
-                && target.getStatus() == OperatorStatus.ACTIVE
-                && request.role() != OperatorRole.ADMIN;
-        List<Operator> activeAdmins = mayDemoteActiveAdmin ? lockAndRefresh(target) : List.of();
+        boolean mayReduceActiveAdmins = request.role() != OperatorRole.ADMIN;
+        List<Operator> activeAdmins = mayReduceActiveAdmins ? operators.lockActiveAdmins() : List.of();
+        boolean mayReduceCaseResponsibility =
+                request.role() != OperatorRole.ADMIN && request.role() != OperatorRole.CASE_MANAGER;
+        List<CustodyCase> affectedCases =
+                mayReduceCaseResponsibility ? responsibleCaseManagers.lockAffectedCases(id) : List.of();
+        if (mayReduceActiveAdmins || mayReduceCaseResponsibility) {
+            target = findOperatorForUpdate(id);
+        }
         if (request.role() == target.getRole()) {
             return mapper.toDetail(target);
+        }
+        if (mayReduceCaseResponsibility) {
+            responsibleCaseManagers.requireStableAffectedCases(affectedCases, target.getId());
         }
 
         boolean demotesActiveAdmin = target.getRole() == OperatorRole.ADMIN
@@ -136,27 +159,44 @@ public class OperatorAdminService {
             }
         }
 
+        boolean removesCaseResponsibility = target.getStatus() == OperatorStatus.ACTIVE
+                && (target.getRole() == OperatorRole.ADMIN || target.getRole() == OperatorRole.CASE_MANAGER)
+                && request.role() != OperatorRole.ADMIN
+                && request.role() != OperatorRole.CASE_MANAGER;
+        if (removesCaseResponsibility) {
+            responsibleCaseManagers.requireAnotherResponsibleManager(affectedCases, target.getId());
+        }
+
         target.changeRole(request.role());
         flushAfterUpdate();
         return mapper.toDetail(target);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @Transactional
     public OperatorDetailResponse updateStatus(UUID id, UpdateOperatorStatusRequest request, UUID actorId) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(actorId, "actorId must not be null");
+        return executeWithStableAffectedCases(() -> updateStatusInTransaction(id, request, actorId));
+    }
+
+    private OperatorDetailResponse updateStatusInTransaction(
+            UUID id, UpdateOperatorStatusRequest request, UUID actorId) {
         Operator target = findOperator(id);
         if (request.status() == target.getStatus()) {
             return mapper.toDetail(target);
         }
 
-        boolean mayDeactivateActiveAdmin = target.getRole() == OperatorRole.ADMIN
-                && target.getStatus() == OperatorStatus.ACTIVE
-                && request.status() != OperatorStatus.ACTIVE;
-        List<Operator> activeAdmins = mayDeactivateActiveAdmin ? lockAndRefresh(target) : List.of();
+        boolean mayDeactivate = request.status() != OperatorStatus.ACTIVE;
+        List<Operator> activeAdmins = mayDeactivate ? operators.lockActiveAdmins() : List.of();
+        List<CustodyCase> affectedCases = mayDeactivate ? responsibleCaseManagers.lockAffectedCases(id) : List.of();
+        if (mayDeactivate) {
+            target = findOperatorForUpdate(id);
+        }
         if (request.status() == target.getStatus()) {
             return mapper.toDetail(target);
+        }
+        if (mayDeactivate) {
+            responsibleCaseManagers.requireStableAffectedCases(affectedCases, target.getId());
         }
 
         boolean deactivatesSelf = target.getId().equals(actorId)
@@ -174,9 +214,29 @@ public class OperatorAdminService {
             throw new OperatorInvariantException("The operation would leave ProofChain without an ACTIVE ADMIN.");
         }
 
+        boolean removesCaseResponsibility = target.getStatus() == OperatorStatus.ACTIVE
+                && (target.getRole() == OperatorRole.ADMIN || target.getRole() == OperatorRole.CASE_MANAGER)
+                && request.status() != OperatorStatus.ACTIVE;
+        if (removesCaseResponsibility) {
+            responsibleCaseManagers.requireAnotherResponsibleManager(affectedCases, target.getId());
+        }
+
         target.changeStatus(request.status());
         flushAfterUpdate();
         return mapper.toDetail(target);
+    }
+
+    private <T> T executeWithStableAffectedCases(Supplier<T> mutation) {
+        AffectedCaseSetChangedException lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_STABLE_SET_ATTEMPTS; attempt++) {
+            try {
+                return mutationTransaction.execute(mutation);
+            } catch (AffectedCaseSetChangedException exception) {
+                // REQUIRES_NEW has completed rollback before control returns here.
+                lastFailure = exception;
+            }
+        }
+        throw new ConcurrentOperatorModificationException(lastFailure);
     }
 
     private Operator canonicalOperatorOrThrow(CreateOperatorRequest request) {
@@ -213,10 +273,12 @@ public class OperatorAdminService {
                 .orElseThrow(() -> new it.itsprodigi.proofchain.common.exception.ResourceNotFoundException());
     }
 
-    private List<Operator> lockAndRefresh(Operator target) {
-        List<Operator> activeAdmins = operators.lockActiveAdmins();
+    private Operator findOperatorForUpdate(UUID id) {
+        Operator target = operators
+                .findByIdForUpdate(id)
+                .orElseThrow(() -> new it.itsprodigi.proofchain.common.exception.ResourceNotFoundException());
         entityManager.refresh(target);
-        return activeAdmins;
+        return target;
     }
 
     private void flushAfterUpdate() {

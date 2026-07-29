@@ -21,6 +21,13 @@ public final class ProblemTypes {
     public static final URI CASE_CLOSED = URI.create("https://proofchain.dev/problems/case-closed");
     public static final URI INVALID_CASE_STATUS_TRANSITION =
             URI.create("https://proofchain.dev/problems/invalid-case-status-transition");
+    public static final URI LAST_CASE_MANAGER_REMOVAL =
+            URI.create("https://proofchain.dev/problems/last-case-manager-removal");
+    public static final URI OPERATOR_NOT_ACTIVE = URI.create("https://proofchain.dev/problems/operator-not-active");
+    public static final URI ADMIN_MEMBERSHIP_NOT_ASSIGNABLE =
+            URI.create("https://proofchain.dev/problems/admin-membership-not-assignable");
+    public static final URI CONCURRENT_MEMBERSHIP_CONFLICT =
+            URI.create("https://proofchain.dev/problems/concurrent-membership-conflict");
 
     private ProblemTypes() {}
 }

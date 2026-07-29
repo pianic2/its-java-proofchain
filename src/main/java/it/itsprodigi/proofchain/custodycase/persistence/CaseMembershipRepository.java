@@ -28,4 +28,48 @@ public interface CaseMembershipRepository extends JpaRepository<CaseMembership, 
     @Transactional(readOnly = true)
     @EntityGraph(attributePaths = {"operator", "assignedBy"})
     List<CaseMembership> findAllByCustodyCaseIdOrderByAssignedAtAscIdAsc(UUID caseId);
+
+    @Transactional(readOnly = true)
+    @Query("""
+            SELECT membership.custodyCase.id
+            FROM CaseMembership membership
+            WHERE membership.operator.id = :operatorId
+            ORDER BY membership.custodyCase.id
+            """)
+    List<UUID> findCaseIdsByOperatorIdOrderByCaseId(@Param("operatorId") UUID operatorId);
+
+    @Transactional(readOnly = true)
+    @Query("""
+            SELECT COUNT(membership)
+            FROM CaseMembership membership
+            WHERE membership.custodyCase.id = :caseId
+              AND membership.operator.status = it.itsprodigi.proofchain.operator.domain.OperatorStatus.ACTIVE
+              AND membership.operator.role IN (
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.ADMIN,
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.CASE_MANAGER
+              )
+            """)
+    long countResponsibleManagers(@Param("caseId") UUID caseId);
+
+    @Transactional(readOnly = true)
+    @Query("""
+            SELECT membership.custodyCase.id AS caseId, COUNT(membership) AS responsibleCount
+            FROM CaseMembership membership
+            WHERE membership.custodyCase.id IN :caseIds
+              AND membership.operator.id <> :excludedOperatorId
+              AND membership.operator.status = it.itsprodigi.proofchain.operator.domain.OperatorStatus.ACTIVE
+              AND membership.operator.role IN (
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.ADMIN,
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.CASE_MANAGER
+              )
+            GROUP BY membership.custodyCase.id
+            """)
+    List<ResponsibleManagerCount> countOtherResponsibleManagersByCase(
+            @Param("caseIds") List<UUID> caseIds, @Param("excludedOperatorId") UUID excludedOperatorId);
+
+    interface ResponsibleManagerCount {
+        UUID getCaseId();
+
+        long getResponsibleCount();
+    }
 }
