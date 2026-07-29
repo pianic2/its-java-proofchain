@@ -23,6 +23,13 @@ import it.itsprodigi.proofchain.custodycase.domain.CaseStatus;
 import it.itsprodigi.proofchain.custodycase.domain.CustodyCase;
 import it.itsprodigi.proofchain.custodycase.persistence.CaseMembershipRepository;
 import it.itsprodigi.proofchain.custodycase.persistence.CustodyCaseRepository;
+import it.itsprodigi.proofchain.custodyevent.domain.CustodyEvent;
+import it.itsprodigi.proofchain.custodyevent.domain.EventType;
+import it.itsprodigi.proofchain.custodyevent.persistence.CustodyEventRepository;
+import it.itsprodigi.proofchain.custodyevent.protocol.CanonicalCustodyEvent;
+import it.itsprodigi.proofchain.custodyevent.protocol.CustodyEventCanonicalizer;
+import it.itsprodigi.proofchain.custodyevent.protocol.CustodyEventHashing;
+import it.itsprodigi.proofchain.custodyevent.protocol.EvidenceRegisteredPayload;
 import it.itsprodigi.proofchain.evidence.application.EvidenceMapper;
 import it.itsprodigi.proofchain.evidence.application.EvidenceStorageFailureException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceStoragePort;
@@ -58,6 +65,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -66,6 +74,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -104,6 +113,9 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
     private DigitalEvidenceRepository evidences;
 
     @MockitoSpyBean
+    private CustodyEventRepository events;
+
+    @MockitoSpyBean
     private EvidenceMapper mapper;
 
     @MockitoSpyBean
@@ -111,6 +123,9 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
 
     @MockitoSpyBean
     private EvidenceStoragePort storage;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private Operator admin;
     private Operator manager;
@@ -163,11 +178,28 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.contextualSha256").isString())
                 .andExpect(jsonPath("$.storageKey").doesNotExist())
                 .andExpect(jsonPath("$.version").doesNotExist())
+                .andExpect(jsonPath("$.custodyEventCount").doesNotExist())
+                .andExpect(jsonPath("$.custodyChainHeadHash").doesNotExist())
                 .andExpect(jsonPath("$.downloadUrl").doesNotExist());
 
         DigitalEvidence persisted = evidences.findAll().getFirst();
+        List<CustodyEvent> timeline = events.findAllByEvidenceIdOrderBySequenceNumberAsc(persisted.getId());
+        assertThat(timeline).hasSize(1);
+        CustodyEvent genesis = timeline.getFirst();
+        EvidenceRegisteredPayload payload = registrationPayload(persisted);
         assertThat(persisted.getId().version()).isEqualTo(4);
         assertThat(persisted.getContextualSha256()).hasSize(64).matches("[0-9a-f]{64}");
+        assertThat(persisted.getCustodyEventCount()).isEqualTo(1);
+        assertThat(persisted.getCustodyChainHeadHash()).isEqualTo(genesis.getEventHash());
+        assertThat(persisted.getCreatedAt()).isEqualTo(persisted.getUpdatedAt()).isEqualTo(genesis.getOccurredAt());
+        assertThat(genesis.getEventType()).isEqualTo(EventType.EVIDENCE_REGISTERED);
+        assertThat(genesis.getSequenceNumber()).isEqualTo(1);
+        assertThat(genesis.getPreviousHash()).isEqualTo(CustodyEventHashing.ZERO_HASH);
+        JsonMapper json = JsonMapper.builder().build();
+        assertThat(json.readTree(genesis.getPayloadJson()))
+                .isEqualTo(json.readTree(CustodyEventCanonicalizer.canonicalizePayload(payload)));
+        assertThat(genesis.getEventHash())
+                .isEqualTo(CustodyEventHashing.eventHash(canonicalEvent(genesis, persisted, manager, payload)));
         assertThat(readOnlyStoredContent()).containsExactly(contentBytes);
     }
 
@@ -339,6 +371,7 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
                         file("c.bin", "application/octet-stream", new byte[] {3})))
                 .andExpect(status().isCreated());
         assertThat(evidences.count()).isEqualTo(2);
+        assertThat(custodyEventCount()).isEqualTo(2);
     }
 
     @Test
@@ -354,6 +387,8 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
                         file("a.bin", "application/octet-stream", new byte[] {1})))
                 .andExpect(status().isInternalServerError());
         assertThat(storedContentCount()).isZero();
+        assertThat(evidences.count()).isZero();
+        assertThat(custodyEventCount()).isZero();
 
         org.mockito.Mockito.reset(evidences);
         CustodyCase responseCase = caseWithMembers("Response failure", manager, officer);
@@ -367,6 +402,37 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
                         file("b.bin", "application/octet-stream", new byte[] {2})))
                 .andExpect(status().isInternalServerError());
         assertThat(evidences.count()).isZero();
+        assertThat(custodyEventCount()).isZero();
+        assertThat(storedContentCount()).isZero();
+
+        org.mockito.Mockito.reset(mapper);
+        CustodyCase eventCase = caseWithMembers("Event failure", manager, officer);
+        doThrow(new DataIntegrityViolationException("forced genesis event insert failure"))
+                .when(events)
+                .saveAndFlush(any(CustodyEvent.class));
+        mockMvc.perform(request(
+                        eventCase,
+                        manager,
+                        metadata(metadataJson("FAIL-EVENT", officer.getId())),
+                        file("c.bin", "application/octet-stream", new byte[] {3})))
+                .andExpect(status().isInternalServerError());
+        assertThat(evidences.count()).isZero();
+        assertThat(custodyEventCount()).isZero();
+        assertThat(storedContentCount()).isZero();
+
+        org.mockito.Mockito.reset(events);
+        CustodyCase finalizationCase = caseWithMembers("Finalization failure", manager, officer);
+        doThrow(new EvidenceStorageFailureException("forced finalization failure"))
+                .when(storage)
+                .finalizeStaged(any(StagedEvidence.class));
+        mockMvc.perform(request(
+                        finalizationCase,
+                        manager,
+                        metadata(metadataJson("FAIL-FINALIZE", officer.getId())),
+                        file("d.bin", "application/octet-stream", new byte[] {4})))
+                .andExpect(status().isInternalServerError());
+        assertThat(evidences.count()).isZero();
+        assertThat(custodyEventCount()).isZero();
         assertThat(storedContentCount()).isZero();
     }
 
@@ -385,6 +451,7 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/storage-failure"));
         assertThat(evidences.count()).isZero();
+        assertThat(custodyEventCount()).isZero();
         assertThat(storedContentCount()).isZero();
     }
 
@@ -424,6 +491,7 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
             assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         }
         assertThat(evidences.count()).isEqualTo(1);
+        assertThat(custodyEventCount()).isEqualTo(1);
         assertThat(storedContentCount()).isEqualTo(1);
     }
 
@@ -480,6 +548,7 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
         assertThat(custodyCases.findById(custodyCase.getId()).orElseThrow().getStatus())
                 .isEqualTo(CaseStatus.CLOSED);
         assertThat(evidences.count()).isEqualTo(1);
+        assertThat(custodyEventCount()).isEqualTo(1);
     }
 
     @Test
@@ -578,6 +647,51 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
                 """.formatted(referenceTag, holderId);
     }
 
+    private static EvidenceRegisteredPayload registrationPayload(DigitalEvidence evidence) {
+        return new EvidenceRegisteredPayload(
+                false,
+                evidence.getReferenceTag(),
+                evidence.getTitle(),
+                evidence.getDescription(),
+                evidence.getStatus(),
+                evidence.getSourceType(),
+                evidence.getSourceDescription(),
+                evidence.getSourceManufacturer(),
+                evidence.getSourceModel(),
+                evidence.getSourceSerialNumber(),
+                evidence.getSourceLogicalIdentifier(),
+                evidence.getAcquisitionMethod(),
+                evidence.getAcquiredAt(),
+                evidence.getAcquisitionLocation(),
+                evidence.getAcquisitionToolName(),
+                evidence.getAcquisitionToolVersion(),
+                evidence.getAcquisitionNotes(),
+                evidence.getOriginalFilename(),
+                evidence.getFileExtension(),
+                evidence.getMediaType(),
+                evidence.getFileSize(),
+                evidence.getContentSha256(),
+                evidence.getContextualSha256(),
+                evidence.getUploadedBy().getId(),
+                evidence.getCurrentHolder().getId());
+    }
+
+    private static CanonicalCustodyEvent canonicalEvent(
+            CustodyEvent event, DigitalEvidence evidence, Operator actor, EvidenceRegisteredPayload payload) {
+        return new CanonicalCustodyEvent(
+                event.getId(),
+                evidence.getCustodyCase().getId(),
+                evidence.getId(),
+                actor.getId(),
+                actor.getRole(),
+                event.getSequenceNumber(),
+                event.getEventType(),
+                event.getOccurredAt(),
+                event.getPayloadVersion(),
+                payload,
+                event.getPreviousHash());
+    }
+
     private byte[] readOnlyStoredContent() throws IOException {
         try (Stream<Path> paths = Files.walk(storageRoot)) {
             Path content = paths.filter(path -> path.getFileName().toString().equals("content.bin"))
@@ -597,7 +711,12 @@ class EvidenceRegistrationWebMvcIT extends PostgreSqlIntegrationTest {
         }
     }
 
+    private long custodyEventCount() {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM custody_events", Long.class);
+    }
+
     private void cleanDatabase() {
+        jdbcTemplate.execute("TRUNCATE TABLE custody_events");
         evidences.deleteAllInBatch();
         memberships.deleteAllInBatch();
         custodyCases.deleteAllInBatch();

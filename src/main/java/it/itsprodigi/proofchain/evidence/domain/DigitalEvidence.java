@@ -207,7 +207,8 @@ public class DigitalEvidence {
             long fileSize,
             String contentSha256,
             String contextualSha256,
-            String storageKey) {
+            String storageKey,
+            Instant registeredAt) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.custodyCase = Objects.requireNonNull(custodyCase, "custodyCase must not be null");
         this.currentHolder = Objects.requireNonNull(currentHolder, "currentHolder must not be null");
@@ -236,9 +237,9 @@ public class DigitalEvidence {
         custodyEventCount = 0L;
         custodyChainHeadHash = ZERO_CUSTODY_HASH;
         status = EvidenceStatus.IN_CUSTODY;
-        Instant now = nowAtMicrosecondPrecision();
-        createdAt = now;
-        updatedAt = now;
+        Instant registrationTime = validRegistrationTime(registeredAt);
+        createdAt = registrationTime;
+        updatedAt = registrationTime;
         this.acquiredAt = validAcquiredAt(acquiredAt);
         version = 0L;
     }
@@ -293,7 +294,8 @@ public class DigitalEvidence {
                 fileSize,
                 contentSha256,
                 contextualSha256,
-                storageKey);
+                storageKey,
+                nowAtMicrosecondPrecision());
     }
 
     public static DigitalEvidence create(
@@ -347,7 +349,64 @@ public class DigitalEvidence {
                 fileSize,
                 contentSha256,
                 contextualSha256,
-                storageKey);
+                storageKey,
+                nowAtMicrosecondPrecision());
+    }
+
+    public static DigitalEvidence create(
+            UUID id,
+            CustodyCase custodyCase,
+            Operator currentHolder,
+            Operator uploadedBy,
+            String referenceTag,
+            String title,
+            String description,
+            SourceType sourceType,
+            String sourceDescription,
+            String sourceManufacturer,
+            String sourceModel,
+            String sourceSerialNumber,
+            String sourceLogicalIdentifier,
+            AcquisitionMethod acquisitionMethod,
+            String acquisitionLocation,
+            String acquisitionToolName,
+            String acquisitionToolVersion,
+            String acquisitionNotes,
+            Instant acquiredAt,
+            String originalFilename,
+            String mediaType,
+            long fileSize,
+            String contentSha256,
+            String contextualSha256,
+            String storageKey,
+            Instant registeredAt) {
+        return new DigitalEvidence(
+                id,
+                custodyCase,
+                currentHolder,
+                uploadedBy,
+                referenceTag,
+                title,
+                description,
+                sourceType,
+                sourceDescription,
+                sourceManufacturer,
+                sourceModel,
+                sourceSerialNumber,
+                sourceLogicalIdentifier,
+                acquisitionMethod,
+                acquisitionLocation,
+                acquisitionToolName,
+                acquisitionToolVersion,
+                acquisitionNotes,
+                acquiredAt,
+                originalFilename,
+                mediaType,
+                fileSize,
+                contentSha256,
+                contextualSha256,
+                storageKey,
+                registeredAt);
     }
 
     public void updateMetadata(String title, String description) {
@@ -690,6 +749,14 @@ public class DigitalEvidence {
             throw new IllegalArgumentException("acquiredAt must not be after createdAt");
         }
         return normalized;
+    }
+
+    private static Instant validRegistrationTime(Instant registeredAt) {
+        Instant value = Objects.requireNonNull(registeredAt, "registeredAt must not be null");
+        if (!value.equals(value.truncatedTo(ChronoUnit.MICROS))) {
+            throw new IllegalArgumentException("registeredAt must have microsecond precision");
+        }
+        return value;
     }
 
     private static boolean containsControlCharacter(String value) {

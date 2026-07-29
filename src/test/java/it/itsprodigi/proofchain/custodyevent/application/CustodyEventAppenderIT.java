@@ -147,13 +147,14 @@ class CustodyEventAppenderIT extends PostgreSqlIntegrationTest {
 
         UUID evidenceId = transactionTemplate.execute(status -> {
             DigitalEvidence managed = evidences.saveAndFlush(evidence(custodyCase, actor, "GENESIS"));
-            appender.initializeGenesis(managed, actor, registeredPayload(managed, false));
+            appender.initializeGenesis(managed, actor, registeredPayload(managed, false), managed.getCreatedAt());
             return managed.getId();
         });
 
         assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
                     DigitalEvidence managed = evidences.findById(evidenceId).orElseThrow();
-                    appender.initializeGenesis(managed, actor, registeredPayload(managed, false));
+                    appender.initializeGenesis(
+                            managed, actor, registeredPayload(managed, false), managed.getCreatedAt());
                 }))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("genesis requires an empty custody chain");

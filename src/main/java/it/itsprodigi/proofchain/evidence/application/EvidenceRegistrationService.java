@@ -8,6 +8,9 @@ import it.itsprodigi.proofchain.custodycase.domain.CaseStatus;
 import it.itsprodigi.proofchain.custodycase.domain.CustodyCase;
 import it.itsprodigi.proofchain.custodycase.persistence.CaseMembershipRepository;
 import it.itsprodigi.proofchain.custodycase.persistence.CustodyCaseRepository;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyEventAppendResult;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyEventAppender;
+import it.itsprodigi.proofchain.custodyevent.protocol.EvidenceRegisteredPayload;
 import it.itsprodigi.proofchain.evidence.api.CreateEvidenceRequest;
 import it.itsprodigi.proofchain.evidence.api.EvidenceResponse;
 import it.itsprodigi.proofchain.evidence.domain.DigitalEvidence;
@@ -19,6 +22,9 @@ import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -49,7 +55,9 @@ public class EvidenceRegistrationService {
     private final CaseAccessService access;
     private final EvidenceStoragePort storage;
     private final EvidenceMapper mapper;
+    private final CustodyEventAppender custodyEvents;
     private final EntityManager entityManager;
+    private final Clock clock;
 
     public EvidenceRegistrationService(
             CustodyCaseRepository custodyCases,
@@ -59,7 +67,9 @@ public class EvidenceRegistrationService {
             CaseAccessService access,
             EvidenceStoragePort storage,
             EvidenceMapper mapper,
-            EntityManager entityManager) {
+            CustodyEventAppender custodyEvents,
+            EntityManager entityManager,
+            Clock clock) {
         this.custodyCases = Objects.requireNonNull(custodyCases, "custodyCases must not be null");
         this.memberships = Objects.requireNonNull(memberships, "memberships must not be null");
         this.operators = Objects.requireNonNull(operators, "operators must not be null");
@@ -67,7 +77,9 @@ public class EvidenceRegistrationService {
         this.access = Objects.requireNonNull(access, "access must not be null");
         this.storage = Objects.requireNonNull(storage, "storage must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
+        this.custodyEvents = Objects.requireNonNull(custodyEvents, "custodyEvents must not be null");
         this.entityManager = Objects.requireNonNull(entityManager, "entityManager must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     @Transactional
@@ -94,6 +106,7 @@ public class EvidenceRegistrationService {
         }
 
         UUID evidenceId = UUID.randomUUID();
+        Instant registeredAt = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
         String storageKey = EvidenceStorageKeyFactory.forEvidence(caseId, evidenceId);
         StagedEvidence staged = stage(storageKey, file);
         String contextualSha256 = EvidenceHashing.contextualSha256(caseId, evidenceId, staged.contentSha256());
@@ -124,14 +137,18 @@ public class EvidenceRegistrationService {
                     staged.byteCount(),
                     staged.contentSha256(),
                     contextualSha256,
-                    storageKey);
+                    storageKey,
+                    registeredAt);
         } catch (IllegalArgumentException | NullPointerException exception) {
             discardStagedWithoutMasking(staged, caseId, evidenceId);
             throw new EvidenceRequestValidationException();
         }
 
+        CustodyEventAppendResult genesis;
         try {
-            evidences.saveAndFlush(evidence);
+            evidence = evidences.saveAndFlush(evidence);
+            genesis = custodyEvents.initializeGenesis(
+                    evidence, currentActor, registrationPayload(evidence), registeredAt);
         } catch (DataIntegrityViolationException exception) {
             discardStagedWithoutMasking(staged, caseId, evidenceId);
             if (hasNamedConstraint(exception, DUPLICATE_REFERENCE_CONSTRAINTS)) {
@@ -149,7 +166,7 @@ public class EvidenceRegistrationService {
             discardStagedWithoutMasking(staged, caseId, evidenceId);
             throw exception;
         }
-        registerTransactionOutcome(storageKey, caseId, evidenceId, currentActor.getId());
+        registerTransactionOutcome(storageKey, caseId, evidenceId, currentActor.getId(), genesis);
         return mapper.toResponse(evidence);
     }
 
@@ -196,7 +213,37 @@ public class EvidenceRegistrationService {
         }
     }
 
-    private void registerTransactionOutcome(String storageKey, UUID caseId, UUID evidenceId, UUID callerId) {
+    private static EvidenceRegisteredPayload registrationPayload(DigitalEvidence evidence) {
+        return new EvidenceRegisteredPayload(
+                false,
+                evidence.getReferenceTag(),
+                evidence.getTitle(),
+                evidence.getDescription(),
+                evidence.getStatus(),
+                evidence.getSourceType(),
+                evidence.getSourceDescription(),
+                evidence.getSourceManufacturer(),
+                evidence.getSourceModel(),
+                evidence.getSourceSerialNumber(),
+                evidence.getSourceLogicalIdentifier(),
+                evidence.getAcquisitionMethod(),
+                evidence.getAcquiredAt(),
+                evidence.getAcquisitionLocation(),
+                evidence.getAcquisitionToolName(),
+                evidence.getAcquisitionToolVersion(),
+                evidence.getAcquisitionNotes(),
+                evidence.getOriginalFilename(),
+                evidence.getFileExtension(),
+                evidence.getMediaType(),
+                evidence.getFileSize(),
+                evidence.getContentSha256(),
+                evidence.getContextualSha256(),
+                evidence.getUploadedBy().getId(),
+                evidence.getCurrentHolder().getId());
+    }
+
+    private void registerTransactionOutcome(
+            String storageKey, UUID caseId, UUID evidenceId, UUID callerId, CustodyEventAppendResult genesis) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             discardFinalizedWithoutMasking(storageKey, caseId, evidenceId);
             throw new EvidenceStorageFailureException("Evidence transaction synchronization is unavailable");
@@ -206,9 +253,11 @@ public class EvidenceRegistrationService {
                 @Override
                 public void afterCommit() {
                     LOGGER.info(
-                            "Evidence registration result=success caseId={} evidenceId={} callerId={}",
+                            "Evidence registration result=success failureCategory=none caseId={} evidenceId={} eventId={} sequenceNumber={} callerId={}",
                             caseId,
                             evidenceId,
+                            genesis.eventId(),
+                            genesis.sequenceNumber(),
                             callerId);
                 }
 
@@ -217,9 +266,11 @@ public class EvidenceRegistrationService {
                     if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
                         discardFinalizedWithoutMasking(storageKey, caseId, evidenceId);
                         LOGGER.warn(
-                                "Evidence registration result=failure caseId={} evidenceId={} callerId={} reason=transaction-rollback",
+                                "Evidence registration result=failure failureCategory=transaction-rollback caseId={} evidenceId={} eventId={} sequenceNumber={} callerId={}",
                                 caseId,
                                 evidenceId,
+                                genesis.eventId(),
+                                genesis.sequenceNumber(),
                                 callerId);
                     }
                 }

@@ -49,7 +49,7 @@ public class CustodyEventAppender {
             DigitalEvidence evidence = evidences
                     .findByIdForCustodyEventAppend(evidenceId)
                     .orElseThrow(() -> new IllegalArgumentException("evidence does not exist"));
-            return appendManaged(evidence, actor, payload);
+            return appendManaged(evidence, actor, payload, nowAtMicrosecondPrecision());
         } catch (PessimisticLockingFailureException | OptimisticLockingFailureException exception) {
             throw new CustodyEventConcurrencyConflictException(exception);
         }
@@ -57,10 +57,11 @@ public class CustodyEventAppender {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public CustodyEventAppendResult initializeGenesis(
-            DigitalEvidence managedEvidence, Operator actor, CustodyEventPayload payload) {
+            DigitalEvidence managedEvidence, Operator actor, CustodyEventPayload payload, Instant occurredAt) {
         Objects.requireNonNull(managedEvidence, "managedEvidence must not be null");
         Objects.requireNonNull(actor, "actor must not be null");
         Objects.requireNonNull(payload, "payload must not be null");
+        Objects.requireNonNull(occurredAt, "occurredAt must not be null");
         if (!entityManager.contains(managedEvidence)) {
             throw new IllegalArgumentException("managedEvidence must be managed in the current transaction");
         }
@@ -69,15 +70,17 @@ public class CustodyEventAppender {
                 || events.existsByEvidenceId(managedEvidence.getId())) {
             throw new IllegalStateException("genesis requires an empty custody chain");
         }
-        return appendManaged(managedEvidence, actor, payload);
+        if (!managedEvidence.getCreatedAt().equals(occurredAt)) {
+            throw new IllegalArgumentException("genesis occurredAt must equal evidence createdAt");
+        }
+        return appendManaged(managedEvidence, actor, payload, occurredAt);
     }
 
     private CustodyEventAppendResult appendManaged(
-            DigitalEvidence evidence, Operator actor, CustodyEventPayload payload) {
+            DigitalEvidence evidence, Operator actor, CustodyEventPayload payload, Instant occurredAt) {
         long sequenceNumber = Math.addExact(evidence.getCustodyEventCount(), 1L);
         String previousHash = sequenceNumber == 1 ? CustodyEventHashing.ZERO_HASH : evidence.getCustodyChainHeadHash();
         UUID eventId = UUID.randomUUID();
-        Instant occurredAt = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
         CanonicalCustodyEvent canonicalEvent = new CanonicalCustodyEvent(
                 eventId,
                 evidence.getCustodyCase().getId(),
@@ -96,5 +99,9 @@ public class CustodyEventAppender {
         events.saveAndFlush(event);
         evidence.advanceCustodyChain(sequenceNumber, eventHash);
         return new CustodyEventAppendResult(eventId, sequenceNumber, payload.eventType(), occurredAt, eventHash);
+    }
+
+    private Instant nowAtMicrosecondPrecision() {
+        return Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
     }
 }
