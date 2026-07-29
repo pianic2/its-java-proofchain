@@ -348,9 +348,32 @@ class CaseControllerWebMvcTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void undocumentedCaseRouteAliasesAreAbsentAtRuntime() throws Exception {
+        String token = bearer(admin);
+        UUID caseId = UUID.fromString("00000000-0000-4000-8000-000000000001");
+
+        mockMvc.perform(post("/api/v1/custody-cases")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("Alias must not create")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/resource-not-found"));
+        mockMvc.perform(get("/api/v1/case").header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/resource-not-found"));
+        mockMvc.perform(get("/api/v1/cases/{caseId}/memberships", caseId).header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/resource-not-found"));
+    }
+
+    @Test
     void openApiDocumentsAllCaseOperationsSchemasStatusesAndSecurity() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/case']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/custody-cases']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/memberships']")
+                        .doesNotExist())
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].post.operationId").value("createCustodyCase"))
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].post.tags[0]").value("Custody cases"))
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].post.security[0].bearerAuth")

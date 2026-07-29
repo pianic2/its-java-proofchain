@@ -26,6 +26,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +48,9 @@ class CustodyCaseRepositoryIT extends PostgreSqlIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private Environment environment;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
@@ -72,6 +76,13 @@ class CustodyCaseRepositoryIT extends PostgreSqlIntegrationTest {
 
     @Test
     void flywayCreatesTheCaseAndMembershipSchemaThatHibernateValidates() {
+        assertThat(environment.getProperty("spring.flyway.enabled", Boolean.class))
+                .isTrue();
+        assertThat(environment.getProperty("spring.flyway.baseline-on-migrate", Boolean.class))
+                .isFalse();
+        assertThat(environment.getProperty("spring.flyway.locations")).isEqualTo("classpath:db/migration");
+        assertThat(environment.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
+
         Map<String, ColumnDefinition> caseColumns = columnsFor("custody_cases");
         Map<String, ColumnDefinition> membershipColumns = columnsFor("case_memberships");
 
