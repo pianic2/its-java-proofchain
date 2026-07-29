@@ -126,6 +126,12 @@ class OperatorSecurityVerticalSliceIT extends PostgreSqlIntegrationTest {
                         .content(duplicateBody)),
                 "https://proofchain.dev/problems/duplicate-resource");
         assertConflict(
+                mockMvc.perform(post("/api/v1/operators")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("new-admin", "admin@example.com", "AUDITOR"))),
+                "https://proofchain.dev/problems/duplicate-resource");
+        assertConflict(
                 mockMvc.perform(patch("/api/v1/operators/{id}/status", admin.getId())
                         .header("Authorization", bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -166,9 +172,7 @@ class OperatorSecurityVerticalSliceIT extends PostgreSqlIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"SUSPENDED\"}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/auth/me").header("Authorization", bearer(auditorToken)))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/invalid-token"));
+        assertInvalidToken(mockMvc.perform(get("/api/v1/auth/me").header("Authorization", bearer(auditorToken))));
 
         mockMvc.perform(patch("/api/v1/operators/{id}/status", auditor.getId())
                         .header("Authorization", bearer(secondAdminToken))
@@ -182,8 +186,7 @@ class OperatorSecurityVerticalSliceIT extends PostgreSqlIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"DISABLED\"}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/auth/me").header("Authorization", bearer(auditorToken)))
-                .andExpect(status().isUnauthorized());
+        assertInvalidToken(mockMvc.perform(get("/api/v1/auth/me").header("Authorization", bearer(auditorToken))));
     }
 
     private Operator operator(String username, String email, OperatorRole role) {
@@ -225,5 +228,12 @@ class OperatorSecurityVerticalSliceIT extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.type").value(type))
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    private void assertInvalidToken(ResultActions result) throws Exception {
+        result.andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/invalid-token"))
+                .andExpect(jsonPath("$.status").value(401));
     }
 }

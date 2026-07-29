@@ -8,11 +8,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.AppenderBase;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import it.itsprodigi.proofchain.auth.api.LoginRequest;
 import it.itsprodigi.proofchain.auth.application.JwtTokenService;
-import it.itsprodigi.proofchain.operator.application.BootstrapAdminProperties;
+import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.operator.application.BootstrapAdminService;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
@@ -20,18 +24,22 @@ import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
 import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
 import it.itsprodigi.proofchain.support.PostgreSqlIntegrationTest;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import javax.crypto.SecretKey;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.json.JsonMapper;
@@ -42,6 +50,8 @@ class AuthenticationVerticalSliceIT extends PostgreSqlIntegrationTest {
 
     private static final String BOOTSTRAP_PASSWORD = "bootstrap-password";
     private static final String OPERATOR_PASSWORD = "operator-password";
+    private static final String BOOTSTRAP_USERNAME = "  Admin.One  ";
+    private static final String BOOTSTRAP_EMAIL = "  Admin.One@Example.COM  ";
 
     @Autowired
     private MockMvc mockMvc;
@@ -62,18 +72,36 @@ class AuthenticationVerticalSliceIT extends PostgreSqlIntegrationTest {
     private BootstrapAdminService bootstrapAdminService;
 
     @Autowired
-    private BootstrapAdminProperties bootstrapProperties;
-
-    @Autowired
     private JsonMapper jsonMapper;
 
+    private Logger authAuditLogger;
+    private AuthAuditAppender authAuditAppender;
+
+    @DynamicPropertySource
+    static void bootstrapProperties(DynamicPropertyRegistry registry) {
+        registry.add("proofchain.bootstrap.admin.enabled", () -> "true");
+        registry.add("proofchain.bootstrap.admin.username", () -> BOOTSTRAP_USERNAME);
+        registry.add("proofchain.bootstrap.admin.email", () -> BOOTSTRAP_EMAIL);
+        registry.add("proofchain.bootstrap.admin.password", () -> BOOTSTRAP_PASSWORD);
+    }
+
     @BeforeEach
-    void cleanOperatorsAndConfigureBootstrap() {
+    void cleanOperatorsAndCaptureAuthenticationEvents() {
         operators.deleteAll();
-        bootstrapProperties.setEnabled(true);
-        bootstrapProperties.setUsername("  Admin.One  ");
-        bootstrapProperties.setEmail("  Admin.One@Example.COM  ");
-        bootstrapProperties.setPassword(BOOTSTRAP_PASSWORD);
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        authAuditLogger = context.getLogger(AuthEventLogger.LOGGER_NAME);
+        authAuditAppender = new AuthAuditAppender();
+        authAuditAppender.setContext(context);
+        authAuditAppender.start();
+        authAuditLogger.addAppender(authAuditAppender);
+    }
+
+    @AfterEach
+    void detachAuthenticationEventAppender() {
+        if (authAuditLogger != null && authAuditAppender != null) {
+            authAuditLogger.detachAppender(authAuditAppender);
+            authAuditAppender.stop();
+        }
     }
 
     @Test
@@ -103,6 +131,7 @@ class AuthenticationVerticalSliceIT extends PostgreSqlIntegrationTest {
 
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.security[0].bearerAuth").isArray())
                 .andExpect(
                         jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme")
@@ -110,6 +139,22 @@ class AuthenticationVerticalSliceIT extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat")
                         .value("JWT"));
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(
+                        jsonPath("$.paths['/api/v1/auth/login'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/me'].get.security[0].bearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/operators'].post.security[0].bearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/operators'].get.security[0].bearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/operators/{id}'].get.security[0].bearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/operators/{id}/role'].patch.security[0].bearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/operators/{id}/status'].patch.security[0].bearerAuth")
+                        .isArray());
     }
 
     @Test
@@ -175,22 +220,29 @@ class AuthenticationVerticalSliceIT extends PostgreSqlIntegrationTest {
                 OperatorRole.AUDITOR));
 
         assertInvalidCredentials("admin.one", "sensitive-login-password");
-        mockMvc.perform(get("/api/v1/operators")
-                        .header(
-                                "Authorization",
-                                bearer(tokens.issue(auditor.getId(), auditor.getUsername(), auditor.getRole())
-                                        .value())))
+        String auditorToken = tokens.issue(auditor.getId(), auditor.getUsername(), auditor.getRole())
+                .value();
+        mockMvc.perform(get("/api/v1/operators").header("Authorization", bearer(auditorToken)))
                 .andExpect(status().isForbidden());
 
-        String log = Files.readString(Path.of("auth.log"));
-        assertThat(log).contains("event=LOGIN_FAILURE").contains("event=ACCESS_DENIED");
-        assertThat(log)
-                .doesNotContain("sensitive-login-password")
-                .doesNotContain("operator-password")
-                .doesNotContain("Authorization")
-                .doesNotContain("Bearer ");
-        assertThat(log).contains("path=/api/v1/auth/login").contains("path=/api/v1/operators");
-        assertThat(log).doesNotContain(admin.getPasswordHash());
+        List<String> capturedEvents = authAuditAppender.messages();
+        assertThat(capturedEvents.stream()
+                        .filter(message -> message.contains("event=LOGIN_FAILURE")
+                                && message.contains("username=admin.one")
+                                && message.contains("path=/api/v1/auth/login")))
+                .hasSize(1);
+        assertThat(capturedEvents.stream()
+                        .filter(message -> message.contains("event=ACCESS_DENIED")
+                                && message.contains("operatorId=" + auditor.getId())
+                                && message.contains("path=/api/v1/operators")))
+                .hasSize(1);
+        assertThat(capturedEvents)
+                .noneMatch(message -> message.contains("sensitive-login-password")
+                        || message.contains("operator-password")
+                        || message.contains(admin.getPasswordHash())
+                        || message.contains(auditorToken)
+                        || message.contains("Authorization")
+                        || message.contains("Bearer "));
     }
 
     private String loginToken(String username, String password) throws Exception {
@@ -240,5 +292,18 @@ class AuthenticationVerticalSliceIT extends PostgreSqlIntegrationTest {
                 .issuer(issuer)
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    private static final class AuthAuditAppender extends AppenderBase<ILoggingEvent> {
+        private final List<ILoggingEvent> events = new CopyOnWriteArrayList<>();
+
+        @Override
+        protected void append(ILoggingEvent event) {
+            events.add(event);
+        }
+
+        private List<String> messages() {
+            return events.stream().map(ILoggingEvent::getFormattedMessage).toList();
+        }
     }
 }
