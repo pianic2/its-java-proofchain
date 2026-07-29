@@ -54,6 +54,9 @@ public interface DigitalEvidenceRepository extends JpaRepository<DigitalEvidence
     @Query(value = """
                     SELECT evidence
                     FROM DigitalEvidence evidence
+                    JOIN FETCH evidence.custodyCase
+                    LEFT JOIN FETCH evidence.currentHolder
+                    JOIN FETCH evidence.uploadedBy
                     WHERE evidence.custodyCase.id = :caseId
                     ORDER BY evidence.createdAt DESC, evidence.id ASC
                     """, countQuery = """

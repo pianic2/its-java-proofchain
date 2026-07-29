@@ -33,6 +33,8 @@ public final class ProblemTypes {
     public static final URI HOLDER_NOT_ELIGIBLE = URI.create("https://proofchain.dev/problems/holder-not-eligible");
     public static final URI PAYLOAD_TOO_LARGE = URI.create("https://proofchain.dev/problems/payload-too-large");
     public static final URI STORAGE_FAILURE = URI.create("https://proofchain.dev/problems/storage-failure");
+    public static final URI EVIDENCE_FILE_UNAVAILABLE =
+            URI.create("https://proofchain.dev/problems/evidence-file-unavailable");
 
     private ProblemTypes() {}
 }

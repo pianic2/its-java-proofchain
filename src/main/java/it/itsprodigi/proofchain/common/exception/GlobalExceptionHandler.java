@@ -13,6 +13,7 @@ import it.itsprodigi.proofchain.custodycase.application.LastCaseManagerRemovalEx
 import it.itsprodigi.proofchain.custodycase.application.OperatorNotActiveException;
 import it.itsprodigi.proofchain.evidence.application.DuplicateEvidenceReferenceTagException;
 import it.itsprodigi.proofchain.evidence.application.EmptyEvidenceException;
+import it.itsprodigi.proofchain.evidence.application.EvidenceFileUnavailableException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceHolderNotEligibleException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceRequestValidationException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceStorageException;
@@ -216,6 +217,17 @@ public class GlobalExceptionHandler {
                 ProblemTypes.STORAGE_FAILURE,
                 "Evidence storage failure",
                 "Evidence content could not be stored safely.",
+                request);
+    }
+
+    @ExceptionHandler(EvidenceFileUnavailableException.class)
+    ProblemDetail handleEvidenceFileUnavailable(
+            EvidenceFileUnavailableException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.EVIDENCE_FILE_UNAVAILABLE,
+                "Evidence file unavailable",
+                "Evidence content is unavailable.",
                 request);
     }
 
