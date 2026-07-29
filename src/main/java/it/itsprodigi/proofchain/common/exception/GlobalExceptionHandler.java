@@ -3,10 +3,14 @@ package it.itsprodigi.proofchain.common.exception;
 import it.itsprodigi.proofchain.auth.application.InvalidCredentialsException;
 import it.itsprodigi.proofchain.auth.logging.AuthEventLogger;
 import it.itsprodigi.proofchain.auth.security.AuthenticatedOperator;
+import it.itsprodigi.proofchain.custodycase.application.AdminMembershipNotAssignableException;
 import it.itsprodigi.proofchain.custodycase.application.CaseClosedException;
 import it.itsprodigi.proofchain.custodycase.application.CaseRequestValidationException;
 import it.itsprodigi.proofchain.custodycase.application.ConcurrentCaseModificationException;
+import it.itsprodigi.proofchain.custodycase.application.ConcurrentMembershipConflictException;
 import it.itsprodigi.proofchain.custodycase.application.InvalidCaseStatusTransitionException;
+import it.itsprodigi.proofchain.custodycase.application.LastCaseManagerRemovalException;
+import it.itsprodigi.proofchain.custodycase.application.OperatorNotActiveException;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
@@ -107,6 +111,48 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 ProblemTypes.INVALID_CASE_STATUS_TRANSITION,
                 "Invalid custody case status transition",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(LastCaseManagerRemovalException.class)
+    ProblemDetail handleLastCaseManagerRemoval(LastCaseManagerRemovalException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.LAST_CASE_MANAGER_REMOVAL,
+                "Last responsible manager removal",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(OperatorNotActiveException.class)
+    ProblemDetail handleOperatorNotActive(OperatorNotActiveException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.OPERATOR_NOT_ACTIVE,
+                "Operator not active",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(AdminMembershipNotAssignableException.class)
+    ProblemDetail handleAdminMembershipNotAssignable(
+            AdminMembershipNotAssignableException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.ADMIN_MEMBERSHIP_NOT_ASSIGNABLE,
+                "ADMIN membership not assignable",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(ConcurrentMembershipConflictException.class)
+    ProblemDetail handleConcurrentMembershipConflict(
+            ConcurrentMembershipConflictException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CONCURRENT_MEMBERSHIP_CONFLICT,
+                "Concurrent membership conflict",
                 exception.getMessage(),
                 request);
     }

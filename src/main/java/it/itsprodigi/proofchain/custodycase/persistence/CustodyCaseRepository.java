@@ -2,6 +2,7 @@ package it.itsprodigi.proofchain.custodycase.persistence;
 
 import it.itsprodigi.proofchain.custodycase.domain.CustodyCase;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,10 @@ public interface CustodyCaseRepository extends JpaRepository<CustodyCase, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT custodyCase FROM CustodyCase custodyCase WHERE custodyCase.id = :caseId")
     Optional<CustodyCase> findByIdForUpdate(@Param("caseId") UUID caseId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT custodyCase FROM CustodyCase custodyCase WHERE custodyCase.id IN :caseIds ORDER BY custodyCase.id")
+    List<CustodyCase> lockAllByIdInOrderById(@Param("caseIds") List<UUID> caseIds);
 
     @Transactional(readOnly = true)
     @EntityGraph(attributePaths = "createdBy")

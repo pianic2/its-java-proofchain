@@ -18,7 +18,9 @@ import it.itsprodigi.proofchain.custodycase.persistence.CaseMembershipRepository
 import it.itsprodigi.proofchain.custodycase.persistence.CustodyCaseRepository;
 import it.itsprodigi.proofchain.operator.domain.Operator;
 import it.itsprodigi.proofchain.operator.domain.OperatorRole;
+import it.itsprodigi.proofchain.operator.domain.OperatorStatus;
 import it.itsprodigi.proofchain.operator.persistence.OperatorRepository;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,13 +50,16 @@ class CustodyCaseServiceTest {
     @Mock
     private CaseAccessService access;
 
+    @Mock
+    private EntityManager entityManager;
+
     private CustodyCaseService service;
     private Operator operator;
     private AuthenticatedOperator actor;
 
     @BeforeEach
     void setUp() {
-        service = new CustodyCaseService(custodyCases, memberships, operators, access, new CaseMapper());
+        service = new CustodyCaseService(custodyCases, memberships, operators, access, new CaseMapper(), entityManager);
         operator = Operator.create(
                 "manager", "manager@example.com", BCRYPT_HASH, "Case", "Manager", OperatorRole.CASE_MANAGER);
         actor = new AuthenticatedOperator(
@@ -70,7 +76,7 @@ class CustodyCaseServiceTest {
 
     @Test
     void createPersistsCaseAndCreatorMembershipWithTheSameManagedOperator() {
-        when(operators.findById(actor.id())).thenReturn(Optional.of(operator));
+        when(operators.findByIdForUpdate(actor.id())).thenReturn(Optional.of(operator));
         CreateCaseRequest request =
                 new CreateCaseRequest("  New case  ", " ", " Court ", null, " Rome ", CasePriority.HIGH);
 
@@ -86,6 +92,17 @@ class CustodyCaseServiceTest {
         assertThat(membershipCaptor.getValue().getCustodyCase()).isSameAs(caseCaptor.getValue());
         assertThat(membershipCaptor.getValue().getOperator()).isSameAs(operator);
         assertThat(membershipCaptor.getValue().getAssignedBy()).isSameAs(operator);
+    }
+
+    @Test
+    void createRevalidatesCurrentCreatorEligibilityUnderTheOperatorLock() {
+        when(operators.findByIdForUpdate(actor.id())).thenReturn(Optional.of(operator));
+        operator.changeStatus(OperatorStatus.SUSPENDED);
+        CreateCaseRequest request = new CreateCaseRequest("New case", null, null, null, null, CasePriority.HIGH);
+
+        assertThatThrownBy(() -> service.create(request, actor)).isInstanceOf(AccessDeniedException.class);
+        verify(custodyCases, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(memberships, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

@@ -5,12 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import it.itsprodigi.proofchain.common.config.PasswordSecurityProperties;
+import it.itsprodigi.proofchain.custodycase.application.AffectedCaseSetChangedException;
+import it.itsprodigi.proofchain.custodycase.application.ResponsibleCaseManagerGuard;
 import it.itsprodigi.proofchain.operator.api.CreateOperatorRequest;
 import it.itsprodigi.proofchain.operator.api.OperatorDetailResponse;
 import it.itsprodigi.proofchain.operator.api.UpdateOperatorRoleRequest;
@@ -26,6 +32,7 @@ import jakarta.validation.ValidatorFactory;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +57,12 @@ class OperatorAdminServiceTest {
     private OperatorRepository operators;
 
     @Mock
+    private ResponsibleCaseManagerGuard responsibleCaseManagers;
+
+    @Mock
+    private OperatorMutationTransaction mutationTransaction;
+
+    @Mock
     private EntityManager entityManager;
 
     private PasswordEncoder passwordEncoder;
@@ -71,9 +84,18 @@ class OperatorAdminServiceTest {
                 new PasswordPolicy(properties),
                 passwordEncoder,
                 VALIDATOR,
+                responsibleCaseManagers,
+                mutationTransaction,
                 entityManager);
+        lenient().when(mutationTransaction.execute(any())).thenAnswer(invocation -> {
+            Supplier<?> mutation = invocation.getArgument(0);
+            return mutation.get();
+        });
         lenient().when(operators.saveAndFlush(any(Operator.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(operators.findById(any(UUID.class))).thenReturn(Optional.empty());
+        lenient()
+                .when(operators.findByIdForUpdate(any(UUID.class)))
+                .thenAnswer(invocation -> operators.findById(invocation.getArgument(0)));
         lenient().when(operators.existsByUsername(any(String.class))).thenReturn(false);
         lenient().when(operators.existsByEmail(any(String.class))).thenReturn(false);
     }
@@ -197,6 +219,131 @@ class OperatorAdminServiceTest {
                             .status())
                     .isEqualTo(OperatorStatus.ACTIVE);
         }
+    }
+
+    @Test
+    void locksGlobalAdminsThenAffectedCasesThenOperatorBeforeReducingCaseResponsibility() {
+        Operator manager = operator("manager", OperatorRole.CASE_MANAGER, OperatorStatus.ACTIVE);
+        when(operators.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(responsibleCaseManagers.lockAffectedCases(manager.getId())).thenReturn(List.of());
+
+        OperatorDetailResponse response = service.updateRole(
+                manager.getId(), new UpdateOperatorRoleRequest(OperatorRole.AUDITOR), UUID.randomUUID());
+
+        assertThat(response.role()).isEqualTo(OperatorRole.AUDITOR);
+        var ordered = inOrder(operators, responsibleCaseManagers);
+        ordered.verify(operators).lockActiveAdmins();
+        ordered.verify(responsibleCaseManagers).lockAffectedCases(manager.getId());
+        ordered.verify(operators).findByIdForUpdate(manager.getId());
+        ordered.verify(responsibleCaseManagers).requireStableAffectedCases(List.of(), manager.getId());
+        ordered.verify(responsibleCaseManagers).requireAnotherResponsibleManager(List.of(), manager.getId());
+    }
+
+    @Test
+    void retriesInANewTransactionWhenTheAffectedMembershipSetChangedAfterOperatorLock() {
+        Operator manager = operator("retry-manager", OperatorRole.CASE_MANAGER, OperatorStatus.ACTIVE);
+        when(operators.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(responsibleCaseManagers.lockAffectedCases(manager.getId())).thenReturn(List.of());
+        doThrow(new AffectedCaseSetChangedException())
+                .doNothing()
+                .when(responsibleCaseManagers)
+                .requireStableAffectedCases(List.of(), manager.getId());
+
+        OperatorDetailResponse response = service.updateRole(
+                manager.getId(), new UpdateOperatorRoleRequest(OperatorRole.AUDITOR), UUID.randomUUID());
+
+        assertThat(response.role()).isEqualTo(OperatorRole.AUDITOR);
+        verify(mutationTransaction, times(2)).execute(any());
+        verify(responsibleCaseManagers, times(2)).lockAffectedCases(manager.getId());
+        verify(operators, times(2)).findByIdForUpdate(manager.getId());
+        verify(operators).flush();
+    }
+
+    @Test
+    void mapsRoleRetryExhaustionToConcurrentModificationAfterExactlyThreeRolledBackAttempts() {
+        Operator manager = operator("exhausted-role", OperatorRole.CASE_MANAGER, OperatorStatus.ACTIVE);
+        when(operators.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(responsibleCaseManagers.lockAffectedCases(manager.getId())).thenReturn(List.of());
+        doThrow(new AffectedCaseSetChangedException())
+                .when(responsibleCaseManagers)
+                .requireStableAffectedCases(List.of(), manager.getId());
+
+        assertThatThrownBy(() -> service.updateRole(
+                        manager.getId(), new UpdateOperatorRoleRequest(OperatorRole.AUDITOR), UUID.randomUUID()))
+                .isInstanceOf(ConcurrentOperatorModificationException.class)
+                .hasCauseInstanceOf(AffectedCaseSetChangedException.class);
+
+        verify(mutationTransaction, times(3)).execute(any());
+        verify(responsibleCaseManagers, times(3)).requireStableAffectedCases(List.of(), manager.getId());
+        verify(operators, times(3)).findByIdForUpdate(manager.getId());
+        verify(operators, never()).flush();
+        assertThat(manager.getRole()).isEqualTo(OperatorRole.CASE_MANAGER);
+    }
+
+    @Test
+    void mapsStatusRetryExhaustionWithoutPartiallyChangingTheOperator() {
+        Operator manager = operator("exhausted-status", OperatorRole.CASE_MANAGER, OperatorStatus.ACTIVE);
+        when(operators.findById(manager.getId())).thenReturn(Optional.of(manager));
+        when(responsibleCaseManagers.lockAffectedCases(manager.getId())).thenReturn(List.of());
+        doThrow(new AffectedCaseSetChangedException())
+                .when(responsibleCaseManagers)
+                .requireStableAffectedCases(List.of(), manager.getId());
+
+        assertThatThrownBy(() -> service.updateStatus(
+                        manager.getId(), new UpdateOperatorStatusRequest(OperatorStatus.SUSPENDED), UUID.randomUUID()))
+                .isInstanceOf(ConcurrentOperatorModificationException.class)
+                .hasCauseInstanceOf(AffectedCaseSetChangedException.class);
+
+        verify(mutationTransaction, times(3)).execute(any());
+        verify(responsibleCaseManagers, times(3)).requireStableAffectedCases(List.of(), manager.getId());
+        verify(operators, never()).flush();
+        assertThat(manager.getStatus()).isEqualTo(OperatorStatus.ACTIVE);
+    }
+
+    @Test
+    void rejectsRoleMutationWhenTheLockedVersionDiffersFromTheObservedVersion() {
+        UUID operatorId = UUID.randomUUID();
+        Operator observed = mock(Operator.class);
+        Operator locked = mock(Operator.class);
+        when(observed.getRole()).thenReturn(OperatorRole.CASE_MANAGER);
+        when(observed.getStatus()).thenReturn(OperatorStatus.ACTIVE);
+        when(observed.getVersion()).thenReturn(4L);
+        when(locked.getVersion()).thenReturn(5L);
+        when(operators.findById(operatorId)).thenReturn(Optional.of(observed), Optional.of(locked));
+        doReturn(Optional.of(locked)).when(operators).findByIdForUpdate(operatorId);
+        when(responsibleCaseManagers.lockAffectedCases(operatorId)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.updateRole(
+                        operatorId, new UpdateOperatorRoleRequest(OperatorRole.AUDITOR), UUID.randomUUID()))
+                .isInstanceOf(ConcurrentOperatorModificationException.class)
+                .hasCauseInstanceOf(jakarta.persistence.OptimisticLockException.class);
+
+        verify(locked, never()).changeRole(any(OperatorRole.class));
+        verify(operators, never()).flush();
+        verify(responsibleCaseManagers, never()).requireStableAffectedCases(List.of(), operatorId);
+    }
+
+    @Test
+    void rejectsStatusMutationWhenTheLockedVersionDiffersFromTheObservedVersion() {
+        UUID operatorId = UUID.randomUUID();
+        Operator observed = mock(Operator.class);
+        Operator locked = mock(Operator.class);
+        when(observed.getRole()).thenReturn(OperatorRole.CASE_MANAGER);
+        when(observed.getStatus()).thenReturn(OperatorStatus.ACTIVE);
+        when(observed.getVersion()).thenReturn(8L);
+        when(locked.getVersion()).thenReturn(9L);
+        when(operators.findById(operatorId)).thenReturn(Optional.of(observed), Optional.of(locked));
+        doReturn(Optional.of(locked)).when(operators).findByIdForUpdate(operatorId);
+        when(responsibleCaseManagers.lockAffectedCases(operatorId)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.updateStatus(
+                        operatorId, new UpdateOperatorStatusRequest(OperatorStatus.SUSPENDED), UUID.randomUUID()))
+                .isInstanceOf(ConcurrentOperatorModificationException.class)
+                .hasCauseInstanceOf(jakarta.persistence.OptimisticLockException.class);
+
+        verify(locked, never()).changeStatus(any(OperatorStatus.class));
+        verify(operators, never()).flush();
+        verify(responsibleCaseManagers, never()).requireStableAffectedCases(List.of(), operatorId);
     }
 
     @Test
