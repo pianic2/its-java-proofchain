@@ -11,12 +11,16 @@ import tools.jackson.databind.annotation.JsonDeserialize;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 @JsonDeserialize(using = UpdateCaseStatusRequest.Deserializer.class)
-@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@Schema(
+        name = "UpdateCaseStatusRequest",
+        description = "Irreversible custody case closure command. Unknown properties are rejected.",
+        additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public record UpdateCaseStatusRequest(
         @NotNull
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 nullable = false,
+                example = "CLOSED",
                 description = "CLOSED performs or repeats closure; OPEN returns a 409 transition conflict.")
         CaseStatus status) {
 

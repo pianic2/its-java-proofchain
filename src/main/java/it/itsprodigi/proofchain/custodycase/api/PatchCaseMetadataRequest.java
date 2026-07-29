@@ -11,7 +11,12 @@ import tools.jackson.databind.annotation.JsonDeserialize;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 @JsonDeserialize(using = PatchCaseMetadataRequest.Deserializer.class)
-@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@Schema(
+        name = "PatchCaseMetadataRequest",
+        description =
+                "Partial custody case metadata update. At least one property is required and unknown properties are rejected.",
+        minProperties = 1,
+        additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public final class PatchCaseMetadataRequest {
 
     private final String title;
@@ -44,6 +49,7 @@ public final class PatchCaseMetadataRequest {
             nullable = false,
             minLength = 3,
             maxLength = 200,
+            example = "Mobile device seizure - supplemental examination",
             description = "When present, must be non-null and is validated after trimming.")
     public String getTitle() {
         return title;
@@ -53,6 +59,7 @@ public final class PatchCaseMetadataRequest {
             requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             types = {"string", "null"},
             maxLength = 2000,
+            example = "Supplemental examination approved.",
             description = "Explicit null or blank clears the value; length is validated after trimming.")
     public String getDescription() {
         return description;
@@ -62,6 +69,7 @@ public final class PatchCaseMetadataRequest {
             requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             types = {"string", "null"},
             maxLength = 200,
+            example = "Court of Rome",
             description = "Explicit null or blank clears the value; length is validated after trimming.")
     public String getAuthorityName() {
         return authorityName;
@@ -71,6 +79,7 @@ public final class PatchCaseMetadataRequest {
             requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             types = {"string", "null"},
             maxLength = 200,
+            example = "WARRANT-2026-0142-A",
             description = "Explicit null or blank clears the value; length is validated after trimming.")
     public String getExternalReference() {
         return externalReference;
@@ -80,6 +89,7 @@ public final class PatchCaseMetadataRequest {
             requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             types = {"string", "null"},
             maxLength = 300,
+            example = "Evidence room B",
             description = "Explicit null or blank clears the value; length is validated after trimming.")
     public String getLocation() {
         return location;
@@ -88,6 +98,7 @@ public final class PatchCaseMetadataRequest {
     @Schema(
             requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             nullable = false,
+            example = "CRITICAL",
             description = "When present, must be non-null.")
     public CasePriority getPriority() {
         return priority;

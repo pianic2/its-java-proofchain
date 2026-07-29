@@ -12,13 +12,17 @@ import tools.jackson.databind.annotation.JsonDeserialize;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 @JsonDeserialize(using = CreateCaseRequest.Deserializer.class)
-@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@Schema(
+        name = "CreateCaseRequest",
+        description = "Metadata for a new custody case. Unknown properties are rejected.",
+        additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public record CreateCaseRequest(
         @NotBlank
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 minLength = 3,
                 maxLength = 200,
+                example = "Mobile device seizure",
                 description = "Title; validated after trimming leading and trailing whitespace.")
         String title,
 
@@ -26,6 +30,7 @@ public record CreateCaseRequest(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 types = {"string", "null"},
                 maxLength = 2000,
+                example = "Device collected under warrant 2026-0142.",
                 description =
                         "Optional description; blank values normalize to null and length is validated after trimming.")
         String description,
@@ -34,6 +39,7 @@ public record CreateCaseRequest(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 types = {"string", "null"},
                 maxLength = 200,
+                example = "Court of Rome",
                 description =
                         "Optional authority name; blank values normalize to null and length is validated after trimming.")
         String authorityName,
@@ -42,6 +48,7 @@ public record CreateCaseRequest(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 types = {"string", "null"},
                 maxLength = 200,
+                example = "WARRANT-2026-0142",
                 description =
                         "Optional external reference; blank values normalize to null and length is validated after trimming.")
         String externalReference,
@@ -50,11 +57,17 @@ public record CreateCaseRequest(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED,
                 types = {"string", "null"},
                 maxLength = 300,
+                example = "Evidence room A",
                 description =
                         "Optional location; blank values normalize to null and length is validated after trimming.")
         String location,
 
-        @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = false)
+        @NotNull
+        @Schema(
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                nullable = false,
+                example = "HIGH",
+                description = "Initial case priority.")
         CasePriority priority) {
 
     static final class Deserializer extends StdDeserializer<CreateCaseRequest> {

@@ -4,10 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import it.itsprodigi.proofchain.auth.security.AuthenticatedOperator;
 import it.itsprodigi.proofchain.custodycase.application.CustodyCaseService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +35,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/cases")
 @SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Custody cases", description = "Custody case metadata, lifecycle, visibility, and membership APIs.")
 public class CaseController {
 
     private final CustodyCaseService service;
@@ -43,8 +46,10 @@ public class CaseController {
 
     @PostMapping
     @Operation(
+            operationId = "createCustodyCase",
             summary = "Create a custody case",
-            description = "Atomically creates an OPEN case and its creator membership.")
+            description =
+                    "Atomically creates an OPEN case and its creator membership. Available to ACTIVE ADMIN and CASE_MANAGER operators.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "201",
@@ -82,7 +87,22 @@ public class CaseController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<CaseResponse> create(
-            @Valid @RequestBody CreateCaseRequest request, @AuthenticationPrincipal AuthenticatedOperator actor) {
+            @Valid
+                    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            required = true,
+                            description = "Strict custody case metadata document.",
+                            content =
+                                    @Content(
+                                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                            schema = @Schema(implementation = CreateCaseRequest.class),
+                                            examples =
+                                                    @ExampleObject(
+                                                            name = "case",
+                                                            value =
+                                                                    "{\"title\":\"Mobile device seizure\",\"description\":\"Device collected under warrant 2026-0142.\",\"authorityName\":\"Court of Rome\",\"externalReference\":\"WARRANT-2026-0142\",\"location\":\"Evidence room A\",\"priority\":\"HIGH\"}")))
+                    @RequestBody
+                    CreateCaseRequest request,
+            @AuthenticationPrincipal AuthenticatedOperator actor) {
         CaseResponse response = service.create(request, actor);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{caseId}")
@@ -93,8 +113,10 @@ public class CaseController {
 
     @GetMapping
     @Operation(
+            operationId = "listCustodyCases",
             summary = "List accessible custody cases",
-            description = "Returns a fixed-order page sorted by createdAt descending and id ascending.")
+            description =
+                    "Returns all cases for ADMIN callers and membership-scoped cases for other roles, sorted by createdAt descending and id ascending. Client-controlled sorting is rejected.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -132,7 +154,11 @@ public class CaseController {
     }
 
     @GetMapping("/{caseId}")
-    @Operation(summary = "Get an accessible custody case")
+    @Operation(
+            operationId = "getCustodyCase",
+            summary = "Get an accessible custody case",
+            description =
+                    "Returns the case to ADMIN callers or assigned members. Existing but inaccessible cases use the same 404 response as missing cases.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -163,14 +189,20 @@ public class CaseController {
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
-    public CaseResponse get(@PathVariable UUID caseId, @AuthenticationPrincipal AuthenticatedOperator actor) {
+    public CaseResponse get(
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @AuthenticationPrincipal AuthenticatedOperator actor) {
         return service.get(caseId, actor);
     }
 
     @PatchMapping("/{caseId}")
     @Operation(
+            operationId = "updateCustodyCaseMetadata",
             summary = "Update custody case metadata",
-            description = "Partially updates metadata on an OPEN custody case.")
+            description =
+                    "Partially updates metadata on an OPEN custody case. ADMIN callers have global authority; CASE_MANAGER callers must be members.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -216,14 +248,34 @@ public class CaseController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public CaseResponse updateMetadata(
-            @PathVariable UUID caseId,
-            @RequestBody PatchCaseMetadataRequest request,
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            required = true,
+                            description =
+                                    "Strict partial update; omitted properties are preserved and explicit null clears nullable metadata.",
+                            content =
+                                    @Content(
+                                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                            schema = @Schema(implementation = PatchCaseMetadataRequest.class),
+                                            examples =
+                                                    @ExampleObject(
+                                                            name = "metadata",
+                                                            value =
+                                                                    "{\"description\":\"Supplemental examination approved.\",\"location\":null,\"priority\":\"CRITICAL\"}")))
+                    @RequestBody
+                    PatchCaseMetadataRequest request,
             @AuthenticationPrincipal AuthenticatedOperator actor) {
         return service.updateMetadata(caseId, request, actor);
     }
 
     @PatchMapping("/{caseId}/status")
-    @Operation(summary = "Close a custody case", description = "Irreversibly and idempotently targets CLOSED status.")
+    @Operation(
+            operationId = "closeCustodyCase",
+            summary = "Close a custody case",
+            description =
+                    "Irreversibly targets CLOSED status. Repeating CLOSED is idempotent; OPEN is an invalid transition. ADMIN callers have global authority; CASE_MANAGER callers must be members.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -269,8 +321,21 @@ public class CaseController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public CaseResponse updateStatus(
-            @PathVariable UUID caseId,
-            @Valid @RequestBody UpdateCaseStatusRequest request,
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @Valid
+                    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            required = true,
+                            description = "Strict closure command.",
+                            content =
+                                    @Content(
+                                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                            schema = @Schema(implementation = UpdateCaseStatusRequest.class),
+                                            examples =
+                                                    @ExampleObject(name = "close", value = "{\"status\":\"CLOSED\"}")))
+                    @RequestBody
+                    UpdateCaseStatusRequest request,
             @AuthenticationPrincipal AuthenticatedOperator actor) {
         return service.updateStatus(caseId, request, actor);
     }

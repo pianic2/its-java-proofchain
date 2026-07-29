@@ -1,12 +1,14 @@
 package it.itsprodigi.proofchain.custodycase.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import it.itsprodigi.proofchain.auth.security.AuthenticatedOperator;
 import it.itsprodigi.proofchain.custodycase.application.CaseMembershipService;
 import it.itsprodigi.proofchain.custodycase.application.MembershipAssignmentResult;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/cases/{caseId}/members")
 @SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Custody cases", description = "Custody case metadata, lifecycle, visibility, and membership APIs.")
 public class CaseMembershipController {
 
     private final CaseMembershipService service;
@@ -37,8 +40,10 @@ public class CaseMembershipController {
 
     @GetMapping
     @Operation(
+            operationId = "listCustodyCaseMembers",
             summary = "List custody case members",
-            description = "Returns members ordered by assignedAt ascending and membership id ascending.")
+            description =
+                    "Returns members to ADMIN callers or assigned members, ordered by assignedAt ascending and membership id ascending. Inaccessible cases are hidden as 404.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -70,14 +75,19 @@ public class CaseMembershipController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public List<MembershipResponse> list(
-            @PathVariable UUID caseId, @AuthenticationPrincipal AuthenticatedOperator actor) {
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @AuthenticationPrincipal AuthenticatedOperator actor) {
         return service.list(caseId, actor);
     }
 
     @PutMapping("/{operatorId}")
     @Operation(
+            operationId = "assignCustodyCaseMember",
             summary = "Assign a custody case member",
-            description = "Creates one membership or returns the unchanged existing membership idempotently.")
+            description =
+                    "Creates one membership for an ACTIVE non-ADMIN operator or returns the unchanged existing membership idempotently. ADMIN callers have global authority; CASE_MANAGER callers must be members of an OPEN case.")
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
@@ -130,8 +140,12 @@ public class CaseMembershipController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<MembershipResponse> assign(
-            @PathVariable UUID caseId,
-            @PathVariable UUID operatorId,
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @Parameter(description = "Operator identifier", example = "9a3b8bf4-1d96-4a1e-810e-5a2f8b6ee2b1")
+                    @PathVariable
+                    UUID operatorId,
             @AuthenticationPrincipal AuthenticatedOperator actor) {
         MembershipAssignmentResult result = service.assign(caseId, operatorId, actor);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
@@ -140,8 +154,10 @@ public class CaseMembershipController {
 
     @DeleteMapping("/{operatorId}")
     @Operation(
+            operationId = "removeCustodyCaseMember",
             summary = "Remove a custody case member",
-            description = "Removes a membership idempotently while preserving a responsible manager.")
+            description =
+                    "Removes a membership idempotently from an OPEN case while preserving at least one ACTIVE responsible manager. ADMIN callers have global authority; CASE_MANAGER callers must be members.")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Membership absent after the operation"),
         @ApiResponse(
@@ -181,8 +197,12 @@ public class CaseMembershipController {
                                 schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<Void> remove(
-            @PathVariable UUID caseId,
-            @PathVariable UUID operatorId,
+            @Parameter(description = "Custody case identifier", example = "1ca01c67-75b9-48e3-a2ed-72259373c67c")
+                    @PathVariable
+                    UUID caseId,
+            @Parameter(description = "Operator identifier", example = "9a3b8bf4-1d96-4a1e-810e-5a2f8b6ee2b1")
+                    @PathVariable
+                    UUID operatorId,
             @AuthenticationPrincipal AuthenticatedOperator actor) {
         service.remove(caseId, operatorId, actor);
         return ResponseEntity.noContent().build();
