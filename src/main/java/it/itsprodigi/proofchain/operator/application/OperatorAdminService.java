@@ -121,14 +121,17 @@ public class OperatorAdminService {
     public OperatorDetailResponse updateRole(UUID id, UpdateOperatorRoleRequest request, UUID actorId) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(actorId, "actorId must not be null");
-        return executeWithStableAffectedCases(() -> updateRoleInTransaction(id, request, actorId));
+        Operator observed = findOperator(id);
+        ObservedOperatorState expected = ObservedOperatorState.capture(observed);
+        if (request.role() == expected.role()) {
+            return mapper.toDetail(observed);
+        }
+        return executeWithStableAffectedCases(() -> updateRoleInTransaction(id, request, actorId, expected));
     }
 
-    private OperatorDetailResponse updateRoleInTransaction(UUID id, UpdateOperatorRoleRequest request, UUID actorId) {
+    private OperatorDetailResponse updateRoleInTransaction(
+            UUID id, UpdateOperatorRoleRequest request, UUID actorId, ObservedOperatorState expected) {
         Operator target = findOperator(id);
-        if (request.role() == target.getRole()) {
-            return mapper.toDetail(target);
-        }
 
         boolean mayReduceActiveAdmins = request.role() != OperatorRole.ADMIN;
         List<Operator> activeAdmins = mayReduceActiveAdmins ? operators.lockActiveAdmins() : List.of();
@@ -139,6 +142,7 @@ public class OperatorAdminService {
         if (mayReduceActiveAdmins || mayReduceCaseResponsibility) {
             target = findOperatorForUpdate(id);
         }
+        requireExpectedVersion(target, expected);
         if (request.role() == target.getRole()) {
             return mapper.toDetail(target);
         }
@@ -176,15 +180,17 @@ public class OperatorAdminService {
     public OperatorDetailResponse updateStatus(UUID id, UpdateOperatorStatusRequest request, UUID actorId) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(actorId, "actorId must not be null");
-        return executeWithStableAffectedCases(() -> updateStatusInTransaction(id, request, actorId));
+        Operator observed = findOperator(id);
+        ObservedOperatorState expected = ObservedOperatorState.capture(observed);
+        if (request.status() == expected.status()) {
+            return mapper.toDetail(observed);
+        }
+        return executeWithStableAffectedCases(() -> updateStatusInTransaction(id, request, actorId, expected));
     }
 
     private OperatorDetailResponse updateStatusInTransaction(
-            UUID id, UpdateOperatorStatusRequest request, UUID actorId) {
+            UUID id, UpdateOperatorStatusRequest request, UUID actorId, ObservedOperatorState expected) {
         Operator target = findOperator(id);
-        if (request.status() == target.getStatus()) {
-            return mapper.toDetail(target);
-        }
 
         boolean mayDeactivate = request.status() != OperatorStatus.ACTIVE;
         List<Operator> activeAdmins = mayDeactivate ? operators.lockActiveAdmins() : List.of();
@@ -192,6 +198,7 @@ public class OperatorAdminService {
         if (mayDeactivate) {
             target = findOperatorForUpdate(id);
         }
+        requireExpectedVersion(target, expected);
         if (request.status() == target.getStatus()) {
             return mapper.toDetail(target);
         }
@@ -237,6 +244,13 @@ public class OperatorAdminService {
             }
         }
         throw new ConcurrentOperatorModificationException(lastFailure);
+    }
+
+    private static void requireExpectedVersion(Operator current, ObservedOperatorState expected) {
+        if (current.getVersion() != expected.version()) {
+            throw new ConcurrentOperatorModificationException(
+                    new OptimisticLockException("Operator version changed before the mutation lock was acquired."));
+        }
     }
 
     private Operator canonicalOperatorOrThrow(CreateOperatorRequest request) {
@@ -339,6 +353,13 @@ public class OperatorAdminService {
             current = current.getCause();
         }
         return false;
+    }
+
+    private record ObservedOperatorState(long version, OperatorRole role, OperatorStatus status) {
+
+        private static ObservedOperatorState capture(Operator operator) {
+            return new ObservedOperatorState(operator.getVersion(), operator.getRole(), operator.getStatus());
+        }
     }
 
     private record SortCriterion(String field, Sort.Direction direction) {}

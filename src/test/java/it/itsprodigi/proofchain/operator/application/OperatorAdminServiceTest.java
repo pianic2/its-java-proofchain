@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -297,6 +298,52 @@ class OperatorAdminServiceTest {
         verify(responsibleCaseManagers, times(3)).requireStableAffectedCases(List.of(), manager.getId());
         verify(operators, never()).flush();
         assertThat(manager.getStatus()).isEqualTo(OperatorStatus.ACTIVE);
+    }
+
+    @Test
+    void rejectsRoleMutationWhenTheLockedVersionDiffersFromTheObservedVersion() {
+        UUID operatorId = UUID.randomUUID();
+        Operator observed = mock(Operator.class);
+        Operator locked = mock(Operator.class);
+        when(observed.getRole()).thenReturn(OperatorRole.CASE_MANAGER);
+        when(observed.getStatus()).thenReturn(OperatorStatus.ACTIVE);
+        when(observed.getVersion()).thenReturn(4L);
+        when(locked.getVersion()).thenReturn(5L);
+        when(operators.findById(operatorId)).thenReturn(Optional.of(observed), Optional.of(locked));
+        doReturn(Optional.of(locked)).when(operators).findByIdForUpdate(operatorId);
+        when(responsibleCaseManagers.lockAffectedCases(operatorId)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.updateRole(
+                        operatorId, new UpdateOperatorRoleRequest(OperatorRole.AUDITOR), UUID.randomUUID()))
+                .isInstanceOf(ConcurrentOperatorModificationException.class)
+                .hasCauseInstanceOf(jakarta.persistence.OptimisticLockException.class);
+
+        verify(locked, never()).changeRole(any(OperatorRole.class));
+        verify(operators, never()).flush();
+        verify(responsibleCaseManagers, never()).requireStableAffectedCases(List.of(), operatorId);
+    }
+
+    @Test
+    void rejectsStatusMutationWhenTheLockedVersionDiffersFromTheObservedVersion() {
+        UUID operatorId = UUID.randomUUID();
+        Operator observed = mock(Operator.class);
+        Operator locked = mock(Operator.class);
+        when(observed.getRole()).thenReturn(OperatorRole.CASE_MANAGER);
+        when(observed.getStatus()).thenReturn(OperatorStatus.ACTIVE);
+        when(observed.getVersion()).thenReturn(8L);
+        when(locked.getVersion()).thenReturn(9L);
+        when(operators.findById(operatorId)).thenReturn(Optional.of(observed), Optional.of(locked));
+        doReturn(Optional.of(locked)).when(operators).findByIdForUpdate(operatorId);
+        when(responsibleCaseManagers.lockAffectedCases(operatorId)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.updateStatus(
+                        operatorId, new UpdateOperatorStatusRequest(OperatorStatus.SUSPENDED), UUID.randomUUID()))
+                .isInstanceOf(ConcurrentOperatorModificationException.class)
+                .hasCauseInstanceOf(jakarta.persistence.OptimisticLockException.class);
+
+        verify(locked, never()).changeStatus(any(OperatorStatus.class));
+        verify(operators, never()).flush();
+        verify(responsibleCaseManagers, never()).requireStableAffectedCases(List.of(), operatorId);
     }
 
     @Test
