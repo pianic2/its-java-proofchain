@@ -12,3 +12,6 @@ proofchain:
     access-token-ttl: PT30M
   password:
     bcrypt-strength: 4
+  storage:
+    root: ${java.io.tmpdir}/proofchain-test-storage-${random.uuid}
+    max-file-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}

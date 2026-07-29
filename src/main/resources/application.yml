@@ -31,6 +31,7 @@ proofchain:
     access-token-ttl: ${PROOFCHAIN_JWT_ACCESS_TOKEN_TTL:PT30M}
   storage:
     root: ${PROOFCHAIN_STORAGE_ROOT:./storage}
+    max-file-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}
   password:
     min-length: ${PROOFCHAIN_PASSWORD_MIN_LENGTH:12}
     max-length: ${PROOFCHAIN_PASSWORD_MAX_LENGTH:128}
