@@ -11,6 +11,8 @@ import it.itsprodigi.proofchain.custodycase.application.ConcurrentMembershipConf
 import it.itsprodigi.proofchain.custodycase.application.InvalidCaseStatusTransitionException;
 import it.itsprodigi.proofchain.custodycase.application.LastCaseManagerRemovalException;
 import it.itsprodigi.proofchain.custodycase.application.OperatorNotActiveException;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyChainReadFailureException;
+import it.itsprodigi.proofchain.custodyevent.application.EventNotFoundException;
 import it.itsprodigi.proofchain.evidence.application.DuplicateEvidenceReferenceTagException;
 import it.itsprodigi.proofchain.evidence.application.EmptyEvidenceException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceFileUnavailableException;
@@ -228,6 +230,27 @@ public class GlobalExceptionHandler {
                 ProblemTypes.EVIDENCE_FILE_UNAVAILABLE,
                 "Evidence file unavailable",
                 "Evidence content is unavailable.",
+                request);
+    }
+
+    @ExceptionHandler(EventNotFoundException.class)
+    ProblemDetail handleEventNotFound(EventNotFoundException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.NOT_FOUND,
+                ProblemTypes.EVENT_NOT_FOUND,
+                "Custody event not found",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(CustodyChainReadFailureException.class)
+    ProblemDetail handleCustodyChainReadFailure(
+            CustodyChainReadFailureException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.CUSTODY_CHAIN_READ_FAILURE,
+                "Custody chain read failure",
+                exception.getMessage(),
                 request);
     }
 

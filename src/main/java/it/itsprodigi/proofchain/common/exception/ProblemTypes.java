@@ -35,6 +35,9 @@ public final class ProblemTypes {
     public static final URI STORAGE_FAILURE = URI.create("https://proofchain.dev/problems/storage-failure");
     public static final URI EVIDENCE_FILE_UNAVAILABLE =
             URI.create("https://proofchain.dev/problems/evidence-file-unavailable");
+    public static final URI EVENT_NOT_FOUND = URI.create("https://proofchain.dev/problems/event-not-found");
+    public static final URI CUSTODY_CHAIN_READ_FAILURE =
+            URI.create("https://proofchain.dev/problems/custody-chain-read-failure");
 
     private ProblemTypes() {}
 }
