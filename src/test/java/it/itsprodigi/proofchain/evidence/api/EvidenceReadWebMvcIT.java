@@ -374,12 +374,19 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
                 .build()
                 .readTree(result.getResponse().getContentAsString())
                 .get("paths");
+        String timelinePath = "/api/v1/evidences/{evidenceId}/events";
+        String eventDetailPath = "/api/v1/evidences/{evidenceId}/events/{eventId}";
+        String verifyChainPath = "/api/v1/evidences/{evidenceId}/verify-chain";
         assertThat(paths.propertyNames())
                 .filteredOn(path -> path.contains("/evidences"))
-                .containsExactlyInAnyOrder(caseEvidencePath, detailPath, downloadPath);
+                .containsExactlyInAnyOrder(
+                        caseEvidencePath, detailPath, downloadPath, timelinePath, eventDetailPath, verifyChainPath);
         assertThat(paths.get(caseEvidencePath).propertyNames()).containsExactlyInAnyOrder("get", "post");
         assertThat(paths.get(detailPath).propertyNames()).containsExactly("get");
         assertThat(paths.get(downloadPath).propertyNames()).containsExactly("get");
+        assertThat(paths.get(timelinePath).propertyNames()).containsExactly("get");
+        assertThat(paths.get(eventDetailPath).propertyNames()).containsExactly("get");
+        assertThat(paths.get(verifyChainPath).propertyNames()).containsExactly("post");
     }
 
     private ResultActions download(UUID evidenceId, Operator reader, String range) throws Exception {
