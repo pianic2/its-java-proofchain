@@ -12,6 +12,7 @@ import it.itsprodigi.proofchain.custodycase.domain.CasePriority;
 import it.itsprodigi.proofchain.custodycase.domain.CustodyCase;
 import it.itsprodigi.proofchain.custodycase.persistence.CaseMembershipRepository;
 import it.itsprodigi.proofchain.custodycase.persistence.CustodyCaseRepository;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyChainVerificationReason;
 import it.itsprodigi.proofchain.custodyevent.application.CustodyEventAppender;
 import it.itsprodigi.proofchain.custodyevent.domain.EventType;
 import it.itsprodigi.proofchain.custodyevent.persistence.CustodyEventRepository;
@@ -32,6 +33,9 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -347,6 +351,39 @@ class CustodyChainVerificationWebMvcIT extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void verificationLeavesTheAnchorAuditColumnsAndTheCompleteEventSetUntouched() throws Exception {
+        ChainContext context = buildValidChain("READONLY", 3, manager, auditor);
+        UUID evidenceId = context.evidence().getId();
+        entityManager.clear();
+        DigitalEvidence before = evidences.findById(evidenceId).orElseThrow();
+        long countBefore = before.getCustodyEventCount();
+        String headBefore = before.getCustodyChainHeadHash();
+        Instant updatedAtBefore = before.getUpdatedAt();
+        long versionBefore = before.getVersion();
+        List<String> eventsBefore = eventFingerprints(evidenceId);
+
+        for (Operator reader : List.of(admin, manager, auditor)) {
+            assertThat(response(verify(evidenceId, reader), 200).get("valid").asBoolean())
+                    .isTrue();
+        }
+
+        entityManager.clear();
+        DigitalEvidence after = evidences.findById(evidenceId).orElseThrow();
+        assertThat(after.getCustodyEventCount()).isEqualTo(countBefore);
+        assertThat(after.getCustodyChainHeadHash()).isEqualTo(headBefore);
+        assertThat(after.getUpdatedAt()).isEqualTo(updatedAtBefore);
+        assertThat(after.getVersion()).isEqualTo(versionBefore);
+        assertThat(eventFingerprints(evidenceId)).isEqualTo(eventsBefore);
+    }
+
+    private List<String> eventFingerprints(UUID evidenceId) {
+        return events.findAllByEvidenceIdOrderBySequenceNumberAsc(evidenceId).stream()
+                .map(event -> event.getId() + "|" + event.getSequenceNumber() + "|" + event.getPreviousHash() + "|"
+                        + event.getEventHash() + "|" + event.getPayloadJson())
+                .toList();
+    }
+
+    @Test
     void openApiPublishesVerifyChainWithTheExactPathAndNoAlias() throws Exception {
         String responses = "$.paths['" + VERIFY_PATH + "'].post.responses";
         MvcResult result = mockMvc.perform(get("/v3/api-docs"))
@@ -370,6 +407,48 @@ class CustodyChainVerificationWebMvcIT extends PostgreSqlIntegrationTest {
                 .filteredOn(path -> path.contains("verify-chain"))
                 .containsExactly(VERIFY_PATH);
         assertThat(paths.get(VERIFY_PATH).propertyNames()).containsExactly("post");
+    }
+
+    @Test
+    void openApiDocumentsBearerSecurityNoRequestBodyAndTheCompleteFailureReasonEnum() throws Exception {
+        ChainContext context = buildValidChain("PARITY", 2, manager, auditor);
+        MvcResult result =
+                mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
+        JsonNode document = json.readTree(result.getResponse().getContentAsString());
+        JsonNode operation = document.get("paths").get(VERIFY_PATH).get("post");
+
+        assertThat(operation.get("security").size()).isEqualTo(1);
+        assertThat(operation.get("security").get(0).size()).isEqualTo(1);
+        assertThat(operation.get("security").get(0).has("bearerAuth")).isTrue();
+        assertThat(operation.get("requestBody")).isNull();
+
+        JsonNode reason = document.get("components")
+                .get("schemas")
+                .get("CustodyChainVerificationResponse")
+                .get("properties")
+                .get("reason");
+        JsonNode documentedReasons = reason.has("enum")
+                ? reason.get("enum")
+                : document.get("components")
+                        .get("schemas")
+                        .get("CustodyChainVerificationReason")
+                        .get("enum");
+        List<String> documented = new ArrayList<>();
+        for (int index = 0; index < documentedReasons.size(); index++) {
+            documented.add(documentedReasons.get(index).asText());
+        }
+        assertThat(documented)
+                .containsExactlyInAnyOrderElementsOf(Arrays.stream(CustodyChainVerificationReason.values())
+                        .map(Enum::name)
+                        .toList());
+
+        JsonNode body = response(verify(context.evidence().getId(), auditor), 200);
+        assertThat(body.get("valid").asBoolean()).isTrue();
+        assertThat(body.get("reason").isNull()).isTrue();
+
+        mockMvc.perform(post(VERIFY_PATH, context.evidence().getId()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/authentication-required"));
     }
 
     // ------------------------------------------------------------------------------------------------

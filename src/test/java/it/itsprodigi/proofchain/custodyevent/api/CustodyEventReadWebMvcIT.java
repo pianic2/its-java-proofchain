@@ -279,6 +279,57 @@ class CustodyEventReadWebMvcIT extends PostgreSqlIntegrationTest {
         assertThat(paths.get(detailPath).propertyNames()).containsExactly("get");
     }
 
+    @Test
+    void openApiBearerSecurityAndPaginationDefaultsMatchRuntimeBehaviour() throws Exception {
+        EventContext context = contextWithAllEvents("PARITY", manager, auditor);
+        MvcResult result =
+                mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
+        JsonNode paths =
+                json.readTree(result.getResponse().getContentAsString()).get("paths");
+        JsonNode timeline = paths.get("/api/v1/evidences/{evidenceId}/events").get("get");
+        JsonNode detail =
+                paths.get("/api/v1/evidences/{evidenceId}/events/{eventId}").get("get");
+
+        for (JsonNode operation : List.of(timeline, detail)) {
+            assertThat(operation.get("security").size()).isEqualTo(1);
+            assertThat(operation.get("security").get(0).size()).isEqualTo(1);
+            assertThat(operation.get("security").get(0).has("bearerAuth")).isTrue();
+            assertThat(operation.get("requestBody")).isNull();
+        }
+
+        int documentedPage = documentedDefault(timeline, "page");
+        int documentedSize = documentedDefault(timeline, "size");
+        assertThat(documentedPage).isZero();
+        assertThat(documentedSize).isEqualTo(50);
+
+        JsonNode page = response(timeline(context.evidence().getId(), auditor), 200);
+        assertThat(page.get("page").asInt()).isEqualTo(documentedPage);
+        assertThat(page.get("size").asInt()).isEqualTo(documentedSize);
+
+        mockMvc.perform(get(
+                        "/api/v1/evidences/{evidenceId}/events",
+                        context.evidence().getId()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/authentication-required"));
+        mockMvc.perform(get(
+                        "/api/v1/evidences/{evidenceId}/events/{eventId}",
+                        context.evidence().getId(),
+                        context.events().getFirst().getId()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/authentication-required"));
+    }
+
+    private static int documentedDefault(JsonNode operation, String parameterName) {
+        JsonNode parameters = operation.get("parameters");
+        for (int index = 0; index < parameters.size(); index++) {
+            JsonNode parameter = parameters.get(index);
+            if (parameterName.equals(parameter.get("name").asText())) {
+                return parameter.get("schema").get("default").asInt();
+            }
+        }
+        throw new AssertionError("OpenAPI does not document the " + parameterName + " parameter");
+    }
+
     private EventContext contextWithAllEvents(String referenceTag, Operator creator, Operator... members) {
         CustodyCase custodyCase = custodyCases.saveAndFlush(
                 CustodyCase.create("Event case " + referenceTag, null, null, null, null, CasePriority.HIGH, creator));

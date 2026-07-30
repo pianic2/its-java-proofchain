@@ -6,7 +6,7 @@ ProofChain is a time-bounded ITS project implemented as a Spring Boot modular mo
 
 ## MVP boundaries
 
-The current Sprint 3 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization, ADMIN-protected operator management, custody case lifecycle, contextual case membership, and four digital-evidence operations: register, list, inspect, and download. Content is stored on the local filesystem and bound to persisted metadata by reproducible SHA-256 values. Custody events, evidence mutation endpoints, background reconciliation, and production storage operations remain outside the implemented scope.
+The current Sprint 4 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization, ADMIN-protected operator management, custody case lifecycle, contextual case membership, four digital-evidence operations (register, list, inspect, and download), and an append-only custody-event hash chain with two read operations and on-demand chain verification. Content is stored on the local filesystem and bound to persisted metadata by reproducible SHA-256 values, while every evidence item owns an independent, hash-linked custody chain that starts with its registration event. Evidence mutation endpoints (transfer, metadata update, file-integrity verification, sealing, and release), background reconciliation, and production storage operations remain outside the implemented scope.
 
 ## Technology stack
 
@@ -76,6 +76,8 @@ Custody case lifecycle and membership are exposed under `/api/v1/cases`. ADMIN o
 
 Digital evidence is registered with `POST /api/v1/cases/{caseId}/evidences`, listed with `GET /api/v1/cases/{caseId}/evidences`, inspected with `GET /api/v1/evidences/{evidenceId}`, and downloaded with `GET /api/v1/evidences/{evidenceId}/download`. See [Digital Evidence](./docs/DigitalEvidence.md) for the multipart contract, access rules, hashes, filesystem safety, paging, downloads, and residual limits.
 
+The immutable custody-event timeline is read with `GET /api/v1/evidences/{evidenceId}/events`, one event is inspected with `GET /api/v1/evidences/{evidenceId}/events/{eventId}`, and the complete chain of one evidence item is verified with `POST /api/v1/evidences/{evidenceId}/verify-chain`. Events are never created, updated, or deleted through the API. See [Custody Events](./docs/Custody-Events.md) for the event model, canonical hashing protocol, reproducible fixed vector, verification semantics, and limits.
+
 ## Tests and quality gate
 
 The canonical verification command is:
@@ -116,6 +118,7 @@ Start with the [technical documentation home](./docs/README.md), then follow the
 - [Operator Management](./docs/Operators.md) — operator data, ADMIN endpoints, persistence, and concurrency invariants.
 - [Custody Cases](./docs/CustodyCases.md) — case lifecycle, contextual membership, REST contracts, persistence, and concurrency.
 - [Digital Evidence](./docs/DigitalEvidence.md) — domain metadata, registration, integrity hashes, filesystem storage, read APIs, and failure contracts.
+- [Custody Events](./docs/Custody-Events.md) — custody-event model, typed payloads, canonical hash chain, timeline and detail APIs, and chain verification.
 - [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
 - [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
 - [MIT license](./LICENSE) — project licensing terms.

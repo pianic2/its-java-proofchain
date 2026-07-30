@@ -13,7 +13,7 @@ Exactly four evidence operations are implemented:
 | `GET /api/v1/evidences/{evidenceId}` | `200` | Read the complete public metadata of one visible evidence item. |
 | `GET /api/v1/evidences/{evidenceId}/download` | `200` | Stream the complete stored file with attachment headers. |
 
-Sprint 3 does not expose evidence update, transfer, seal, release, delete, bulk-ingestion, or custody-event endpoints.
+Sprint 3 does not expose evidence update, transfer, seal, release, delete, or bulk-ingestion endpoints. Sprint 4 later added the read-only custody-event timeline, custody-event detail, and chain-verification routes documented in [Custody Events](./Custody-Events.md); the registration contract above is unchanged.
 
 ## Domain and persistence model
 
@@ -86,8 +86,9 @@ Registration deliberately coordinates the relational transaction and filesystem 
 5. Stream the upload once into the private staging directory while enforcing the byte limit and computing the content hash.
 6. Compute the contextual hash from the case UUID, evidence UUID, and content hash.
 7. Persist and flush the evidence row. The named PostgreSQL uniqueness constraint resolves duplicate-reference races.
-8. Reserve the final target and atomically move the staged file without overwriting an existing target.
-9. Register the transaction outcome: log success only after commit; on rollback, attempt to delete the finalized file without masking the original failure.
+8. Append the genesis `EVIDENCE_REGISTERED` custody event and advance the chain anchor in the same transaction, sharing the single registration timestamp. See [Custody Events](./Custody-Events.md).
+9. Reserve the final target and atomically move the staged file without overwriting an existing target.
+10. Register the transaction outcome: log success only after commit; on rollback, attempt to delete the finalized file without masking the original failure.
 
 The case lock serializes registration against case closure. Staging or persistence failures attempt to remove the temporary file; a rollback after finalization attempts to remove the final file. Cleanup failures are logged with identifiers and stable reason codes, without logging content, filenames, storage keys, or paths.
 
@@ -236,6 +237,6 @@ The primary executable references are [`DigitalEvidenceTest`](../src/test/java/i
 - There is no malware scan, file-format inspection, content indexing, thumbnailing, or metadata extraction.
 - There is no automatic orphan-file reconciliation for the finalization/commit crash window.
 - Download has no range/resume support, ETag, conditional request, or server-side hash re-verification.
-- Evidence mutation, transfer, seal, release, deletion, custody events, and a custody-event hash chain are deferred. The four routes listed above are the complete Sprint 3 evidence API.
+- Evidence mutation, transfer, seal, release, and deletion are deferred. The four routes listed above are the complete Sprint 3 evidence API; the custody-event chain added in Sprint 4 is documented separately in [Custody Events](./Custody-Events.md).
 
 The architectural decision is recorded in [ADR-005](./adr/ADR-005-sprint-3-digital-evidence-and-filesystem-storage.md).
