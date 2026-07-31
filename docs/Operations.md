@@ -148,6 +148,61 @@ The application never degrades and never retries indefinitely, and the Compose s
 | Evidence storage root that cannot be created | context fails to start, exit code 1, `Evidence storage directory cannot be created` |
 | Missing datasource password | one connection attempt, then fail closed; the message names the mechanism, never the credential |
 
+## Logs
+
+- The application logs to standard output. Read them with `docker compose logs -f proofchain`, or with
+  `docker compose logs --since 10m proofchain` for a bounded window. Docker owns rotation; the application writes no
+  log file inside the container, which is why the read-only root filesystem needs no extra writable mount.
+- Authentication events go to a dedicated `AUTH_AUDIT` destination configured in `logback-spring.xml`: the file
+  `auth.log` under the `local` profile (git-ignored) and standard output under `container`.
+- Log values pass through `LogValueSanitizer`. Tokens, password hashes, file bytes, storage keys, absolute paths and
+  canonical hash preimages are never logged; `SecurityLogAndResponseLeakAuditIT` asserts it. A log line therefore
+  identifies *what* failed and for which identifiers, never the sensitive value involved.
+
+## Migration failure
+
+Flyway runs before the application context becomes ready, with `validate-on-migrate: true`, `out-of-order: false`,
+`baseline-on-migrate: false` and `clean-disabled: true`.
+
+| Situation | Behaviour |
+| --- | --- |
+| A migration fails mid-way | The context fails to start. The application never serves traffic on a partially migrated schema — `MigrationFailureCertificationIT` proves it |
+| A checksum no longer matches | Startup stops with a validation error. A released migration must never be edited; add a new one instead |
+| The schema exists but has no Flyway history | Startup stops. Baselining is deliberately disabled so an unknown schema is never adopted silently |
+| Hibernate finds a mismatch after migration | Startup stops. `ddl-auto: validate` never creates or repairs schema |
+
+Recovery is manual and deliberate. The failure modes, the certified baselines and the step-by-step repair procedure are
+in [Database schema lifecycle](./Database-Schema-Lifecycle.md). Do not enable `baseline-on-migrate` or `clean` to make
+an error disappear.
+
+## Disk-full behaviour
+
+- A write that fails because the evidence volume is full surfaces as `500 storage-failure`. Registration discards the
+  staged file and the transaction rolls back, so a failed upload leaves neither a row nor content.
+- Reads, downloads and integrity verification do not write and are unaffected by a full evidence volume.
+- A full **database** volume is a PostgreSQL-level failure: commands fail and the application reports sanitized
+  persistence errors. Free space and restart the database; the application needs no repair step of its own because
+  nothing was committed.
+- After freeing space, run the offline orphan report before returning the system to service. A clean report is the
+  evidence that the two stores agree again.
+- There is no disk-usage alarm, no quota enforcement and no automatic pruning in this release. Monitoring volume
+  capacity is an operator responsibility.
+
+## Recovery boundaries
+
+What this release can and cannot do after an incident, stated plainly:
+
+| Can | Cannot |
+| --- | --- |
+| Detect content with no owning database row, through the read-only orphan report | Delete, move, quarantine or repair that content automatically |
+| Detect a database row whose file is missing or altered, through `POST /verify-integrity` and the report | Restore, reconstruct or repair the missing or altered bytes |
+| Detect a tampered custody chain, through `POST /verify-chain` | Rebuild a broken chain, or rewrite an event — the append-only trigger forbids it |
+| Refuse to start on a broken schema or an invalid configuration | Self-heal a schema, generate a missing secret, or start degraded |
+| Restore from a coordinated backup taken with the stack stopped | Restore the database and the evidence volume independently and remain consistent |
+
+There is no undo, no un-seal and no custody restoration anywhere in the system. Recovery from a destructive mistake
+means restoring a coordinated backup.
+
 ## Security properties
 
 - No root at runtime: the process runs as UID and GID `10001`, and `/proc/1/status` reports `Uid: 10001` with `CapEff: 0000000000000000` and `NoNewPrivs: 1`.

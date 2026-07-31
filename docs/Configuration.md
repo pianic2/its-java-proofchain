@@ -126,3 +126,54 @@ set -a
 source .env
 set +a
 ```
+
+Docker Compose reads `.env` automatically and needs no export step.
+
+The complete table. **Sensitive** marks a value that is a real secret and must never be committed, logged or pasted into an issue. **Profile** names where the variable applies: *compose* variables are consumed by `compose.yml` itself, *application* variables by the running application.
+
+| Variable | Required | Default | Sensitive | Profile | Validation | Safe example |
+| --- | --- | --- | --- | --- | --- | --- |
+| `POSTGRES_DB` | no | `proofchain` | no | compose | none | `proofchain` |
+| `POSTGRES_USER` | no | `proofchain` | no | compose | none | `proofchain` |
+| `POSTGRES_PASSWORD` | **yes** | none | **yes** | compose | Compose refuses to start without it (`${VAR:?}`) | `<local-only-secret>` |
+| `POSTGRES_PORT` | no | `5432` | no | compose | must be a free host port | `5432` |
+| `APP_PORT` | no | `8080` | no | compose | must be a free host port | `8080` |
+| `PROOFCHAIN_TMPFS_SIZE` | no | `256m` | no | compose | Docker size syntax | `256m` |
+| `PROOFCHAIN_BUILD_CA_FILE` | no | `/dev/null` | no | compose, build only | readable PEM file; never reaches the runtime image | `/path/to/corporate-ca.crt` |
+| `SPRING_PROFILES_ACTIVE` | no | `local` | no | application | one of `local`, `container`, `test` | `local` |
+| `DB_HOST` | **yes** in `local` and `container` | none | no | application | reachable host; `localhost` under `local`, `postgres` under `container` | `localhost` |
+| `DB_PORT` | **yes** in `local` and `container` | none | no | application | port number | `5432` |
+| `DB_NAME` | **yes** in `local` and `container` | none | no | application | non-empty | `proofchain` |
+| `DB_USERNAME` | **yes** in `local` and `container` | none | no | application | non-empty; startup fails when blank | `proofchain` |
+| `DB_PASSWORD` | **yes** in `local` and `container` | none | **yes** | application | non-empty; startup fails when blank | `<local-only-secret>` |
+| `PROOFCHAIN_STORAGE_ROOT` | no | `./storage` (`local`), `/var/lib/proofchain/storage` (`container`) | no | application | must be, or be creatable as, a writable directory; startup fails otherwise | `./storage` |
+| `PROOFCHAIN_JWT_SECRET` | **yes** | none | **yes** | application | standard RFC 4648 Base64 decoding to ≥ 32 bytes; never generated, never defaulted | `<base64-of-at-least-32-random-bytes>` |
+| `PROOFCHAIN_JWT_ACCESS_TOKEN_TTL` | no | `PT30M` | no | application | ISO-8601 duration, strictly positive | `PT30M` |
+| `PROOFCHAIN_MAX_FILE_SIZE` | no | `50MB` | no | application | positive data size | `50MB` |
+| `PROOFCHAIN_MAX_REQUEST_SIZE` | no | `51MB` | no | application | positive data size; keep above the file limit for metadata and framing | `51MB` |
+| `PROOFCHAIN_MAX_HTTP_HEADER_SIZE` | no | `16KB` | no | application | finite and strictly positive | `16KB` |
+| `PROOFCHAIN_MAX_FORM_POST_SIZE` | no | `256KB` | no | application | finite and strictly positive | `256KB` |
+| `PROOFCHAIN_MAX_SWALLOW_SIZE` | no | `2MB` | no | application | finite and strictly positive | `2MB` |
+| `PROOFCHAIN_MAX_PARAMETER_COUNT` | no | `256` | no | application | positive integer | `256` |
+| `PROOFCHAIN_MAX_PART_COUNT` | no | `16` | no | application | positive integer | `16` |
+| `PROOFCHAIN_MAX_PART_HEADER_SIZE` | no | `8KB` | no | application | finite and strictly positive | `8KB` |
+| `PROOFCHAIN_HTTP_CONNECTION_TIMEOUT` | no | `20s` | no | application | positive duration | `20s` |
+| `PROOFCHAIN_HTTP_KEEP_ALIVE_TIMEOUT` | no | `20s` | no | application | positive duration | `20s` |
+| `PROOFCHAIN_SHUTDOWN_TIMEOUT` | no | `30s` | no | application | positive, at most 5 minutes | `30s` |
+| `PROOFCHAIN_DB_CONNECTION_TIMEOUT_MS` | no | `10000` | no | application | 250..60000 milliseconds | `10000` |
+| `PROOFCHAIN_DB_VALIDATION_TIMEOUT_MS` | no | `5000` | no | application | milliseconds, smaller than the acquisition budget | `5000` |
+| `PROOFCHAIN_DB_STARTUP_TIMEOUT_MS` | no | `1` | no | application | non-negative; `1` proves one connection then fails closed | `1` |
+| `PROOFCHAIN_DB_LOCK_TIMEOUT` | no | `10s` | no | application | positive, at most 5 minutes | `10s` |
+| `PROOFCHAIN_PASSWORD_MIN_LENGTH` | no | `12` | no | application | positive, not greater than the maximum | `12` |
+| `PROOFCHAIN_PASSWORD_MAX_LENGTH` | no | `128` | no | application | positive, not smaller than the minimum | `128` |
+| `PROOFCHAIN_BCRYPT_STRENGTH` | no | `12` | no | application | 4..31 | `12` |
+| `PROOFCHAIN_CORS_ALLOWED_ORIGINS` | no | empty (deny all) | no | application | comma-separated explicit origins; a `*` entry is rejected at startup | `https://console.example.org` |
+| `PROOFCHAIN_BOOTSTRAP_ADMIN_ENABLED` | no | `false` | no | application | boolean; when `true` the other three become required | `false` |
+| `PROOFCHAIN_BOOTSTRAP_ADMIN_USERNAME` | only when the bootstrap is enabled | empty | no | application | must satisfy the operator username rules | `proofchain-admin` |
+| `PROOFCHAIN_BOOTSTRAP_ADMIN_EMAIL` | only when the bootstrap is enabled | empty | no | application | valid email | `admin@example.org` |
+| `PROOFCHAIN_BOOTSTRAP_ADMIN_PASSWORD` | only when the bootstrap is enabled | empty | **yes** | application | must satisfy the configured password policy | `<local-only-secret>` |
+
+Every invalid value in the *Validation* column stops startup. The application never falls back to a default for a
+secret, never lowers a limit to make a request succeed, and never starts in a degraded mode.
+
+Symptom-driven help for a configuration that will not start is in [Troubleshooting](./Troubleshooting.md).

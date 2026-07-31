@@ -19,14 +19,19 @@ import org.junit.jupiter.api.Test;
 /**
  * Repository-wide documentation link audit.
  *
- * <p>Every relative Markdown link in the README, the contributing guide, the technical documentation and the migration
- * guide must resolve to a file that exists, and every in-document anchor must match an actual heading. This keeps the
- * ADR index, the documentation home and the feature guides from drifting apart after a rename, and it is what makes a
- * newly added ADR number verifiable from a test rather than from a manual review.
+ * <p>Every relative Markdown link in the README, the contributing guide, the changelog, the Postman guide, the
+ * technical documentation and the migration guide must resolve to a file that exists, and every in-document anchor
+ * must match an actual heading. This keeps the ADR index, the documentation home and the feature guides from drifting
+ * apart after a rename, and it is what makes a newly added ADR number verifiable from a test rather than from a manual
+ * review.
+ *
+ * <p>The ADR index is additionally audited in both directions: every accepted record on disk is linked exactly once,
+ * and the index links nothing that is not an accepted record.
  */
 class DocumentationLinkAuditTest {
 
     private static final Pattern MARKDOWN_LINK = Pattern.compile("\\[[^\\]]*]\\(([^)\\s]+)\\)");
+    private static final Pattern ADR_LINK = Pattern.compile("]\\(\\./(ADR-\\d{3}-[^)\\s]+\\.md)\\)");
     private static final Pattern NON_SLUG = Pattern.compile("[^a-z0-9 \\-]");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
@@ -87,6 +92,17 @@ class DocumentationLinkAuditTest {
                     .isEqualTo(1);
         }
 
+        // The loop above proves every existing ADR is linked exactly once. This proves the converse: the index links
+        // nothing that is not an ADR file on disk, so a renamed or deleted record cannot leave a stale entry behind.
+        List<String> linkedRecords = new ArrayList<>();
+        Matcher linked = ADR_LINK.matcher(index);
+        while (linked.find()) {
+            linkedRecords.add(linked.group(1));
+        }
+        assertThat(linkedRecords)
+                .as("the ADR index must link every accepted record exactly once and nothing else")
+                .containsExactlyInAnyOrderElementsOf(records);
+
         // ADR numbers are dense and unique, so the next free number is always records.size() + 1.
         for (int position = 0; position < records.size(); position++) {
             assertThat(records.get(position))
@@ -99,6 +115,8 @@ class DocumentationLinkAuditTest {
         List<Path> documents = new ArrayList<>();
         documents.add(Path.of("README.md"));
         documents.add(Path.of("CONTRIBUTING.md"));
+        documents.add(Path.of("CHANGELOG.md"));
+        documents.add(Path.of("postman", "README.md"));
         documents.add(Path.of("src", "main", "resources", "db", "migration", "README.md"));
         try (Stream<Path> files = Files.walk(Path.of("docs"))) {
             files.filter(Files::isRegularFile)
