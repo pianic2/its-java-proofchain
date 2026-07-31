@@ -378,6 +378,7 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
         String eventDetailPath = "/api/v1/evidences/{evidenceId}/events/{eventId}";
         String verifyChainPath = "/api/v1/evidences/{evidenceId}/verify-chain";
         String transferPath = "/api/v1/evidences/{evidenceId}/transfer";
+        String metadataPath = "/api/v1/evidences/{evidenceId}/metadata";
         assertThat(paths.propertyNames())
                 .filteredOn(path -> path.contains("/evidences"))
                 .containsExactlyInAnyOrder(
@@ -387,7 +388,8 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
                         timelinePath,
                         eventDetailPath,
                         verifyChainPath,
-                        transferPath);
+                        transferPath,
+                        metadataPath);
         assertThat(paths.get(caseEvidencePath).propertyNames()).containsExactlyInAnyOrder("get", "post");
         assertThat(paths.get(detailPath).propertyNames()).containsExactly("get");
         assertThat(paths.get(downloadPath).propertyNames()).containsExactly("get");
@@ -395,6 +397,7 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
         assertThat(paths.get(eventDetailPath).propertyNames()).containsExactly("get");
         assertThat(paths.get(verifyChainPath).propertyNames()).containsExactly("post");
         assertThat(paths.get(transferPath).propertyNames()).containsExactly("post");
+        assertThat(paths.get(metadataPath).propertyNames()).containsExactly("patch");
     }
 
     private ResultActions download(UUID evidenceId, Operator reader, String range) throws Exception {

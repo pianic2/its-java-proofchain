@@ -24,6 +24,7 @@ import it.itsprodigi.proofchain.evidence.application.EvidenceRequestValidationEx
 import it.itsprodigi.proofchain.evidence.application.EvidenceStorageException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceTooLargeException;
 import it.itsprodigi.proofchain.evidence.application.InvalidEvidenceStateException;
+import it.itsprodigi.proofchain.evidence.application.MetadataUpdateNoOpException;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
@@ -202,6 +203,16 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 ProblemTypes.CUSTODY_TRANSFER_NO_OP,
                 "Custody transfer no-op",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(MetadataUpdateNoOpException.class)
+    ProblemDetail handleMetadataUpdateNoOp(MetadataUpdateNoOpException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.METADATA_UPDATE_NO_OP,
+                "Metadata update no-op",
                 exception.getMessage(),
                 request);
     }
