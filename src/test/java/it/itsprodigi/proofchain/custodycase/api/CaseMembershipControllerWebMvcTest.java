@@ -281,17 +281,39 @@ class CaseMembershipControllerWebMvcTest extends PostgreSqlIntegrationTest {
 
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members'].get.operationId")
+                        .value("listCustodyCaseMembers"))
                 .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members'].get.responses['200']")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members'].get.parameters[0].example")
+                        .value("1ca01c67-75b9-48e3-a2ed-72259373c67c"))
                 .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members/{operatorId}'].put.responses['201']")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members/{operatorId}'].put.responses")
+                        .value(org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.hasKey("200"),
+                                org.hamcrest.Matchers.hasKey("201"),
+                                org.hamcrest.Matchers.hasKey("400"),
+                                org.hamcrest.Matchers.hasKey("401"),
+                                org.hamcrest.Matchers.hasKey("403"),
+                                org.hamcrest.Matchers.hasKey("404"),
+                                org.hamcrest.Matchers.hasKey("409"))))
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/cases/{caseId}/members/{operatorId}'].put.responses['409'].content['application/problem+json']")
                         .exists())
                 .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members/{operatorId}'].delete.responses['204']")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/members/{operatorId}'].put.parameters[1].example")
+                        .value("9a3b8bf4-1d96-4a1e-810e-5a2f8b6ee2b1"))
                 .andExpect(jsonPath("$.components.schemas.MembershipResponse.properties.version")
                         .doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.MembershipResponse.properties.id.format")
+                        .value("uuid"))
+                .andExpect(jsonPath("$.components.schemas.MembershipResponse.properties.assignedAt.example")
+                        .value("2026-07-29T08:15:30.123456Z"))
+                .andExpect(jsonPath("$.components.schemas.MembershipResponse.required")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(
+                                "id", "caseId", "operator", "assignedBy", "assignedAt")))
                 .andExpect(jsonPath("$.components.schemas.MembershipResponse.properties.operator.$ref")
                         .value("#/components/schemas/CaseOperatorSummaryResponse"));
     }

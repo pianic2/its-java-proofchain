@@ -28,6 +28,25 @@ public final class ProblemTypes {
             URI.create("https://proofchain.dev/problems/admin-membership-not-assignable");
     public static final URI CONCURRENT_MEMBERSHIP_CONFLICT =
             URI.create("https://proofchain.dev/problems/concurrent-membership-conflict");
+    public static final URI DUPLICATE_EVIDENCE_REFERENCE_TAG =
+            URI.create("https://proofchain.dev/problems/duplicate-evidence-reference-tag");
+    public static final URI HOLDER_NOT_ELIGIBLE = URI.create("https://proofchain.dev/problems/holder-not-eligible");
+    public static final URI PAYLOAD_TOO_LARGE = URI.create("https://proofchain.dev/problems/payload-too-large");
+    public static final URI STORAGE_FAILURE = URI.create("https://proofchain.dev/problems/storage-failure");
+    public static final URI EVIDENCE_FILE_UNAVAILABLE =
+            URI.create("https://proofchain.dev/problems/evidence-file-unavailable");
+    public static final URI EVENT_NOT_FOUND = URI.create("https://proofchain.dev/problems/event-not-found");
+    public static final URI INVALID_EVIDENCE_STATE =
+            URI.create("https://proofchain.dev/problems/invalid-evidence-state");
+    public static final URI CUSTODY_TRANSFER_NO_OP =
+            URI.create("https://proofchain.dev/problems/custody-transfer-no-op");
+    public static final URI METADATA_UPDATE_NO_OP = URI.create("https://proofchain.dev/problems/metadata-update-no-op");
+    public static final URI CUSTODY_EVENT_CONCURRENCY_CONFLICT =
+            URI.create("https://proofchain.dev/problems/custody-event-concurrency-conflict");
+    public static final URI CUSTODY_EVENT_PERSISTENCE_FAILURE =
+            URI.create("https://proofchain.dev/problems/custody-event-persistence-failure");
+    public static final URI CUSTODY_CHAIN_READ_FAILURE =
+            URI.create("https://proofchain.dev/problems/custody-chain-read-failure");
 
     private ProblemTypes() {}
 }

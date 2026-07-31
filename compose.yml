@@ -16,5 +16,78 @@ services:
       retries: 10
       start_period: 10s
 
+  proofchain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - build-ca
+    image: proofchain:1.0.0
+    depends_on:
+      postgres:
+        # Startup order is derived from the database health probe. No sleep, no
+        # retry loop, no degraded start: the application still fails fast if the
+        # database disappears between the probe and the first connection.
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: container
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-proofchain}
+      DB_USERNAME: ${POSTGRES_USER:-proofchain}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PROOFCHAIN_STORAGE_ROOT: /var/lib/proofchain/storage
+      PROOFCHAIN_MAX_FILE_SIZE: ${PROOFCHAIN_MAX_FILE_SIZE:-50MB}
+      PROOFCHAIN_MAX_REQUEST_SIZE: ${PROOFCHAIN_MAX_REQUEST_SIZE:-51MB}
+      PROOFCHAIN_JWT_SECRET: ${PROOFCHAIN_JWT_SECRET:?Set PROOFCHAIN_JWT_SECRET in .env}
+      PROOFCHAIN_JWT_ACCESS_TOKEN_TTL: ${PROOFCHAIN_JWT_ACCESS_TOKEN_TTL:-PT30M}
+      PROOFCHAIN_SHUTDOWN_TIMEOUT: ${PROOFCHAIN_SHUTDOWN_TIMEOUT:-30s}
+      PROOFCHAIN_CORS_ALLOWED_ORIGINS: ${PROOFCHAIN_CORS_ALLOWED_ORIGINS:-}
+      PROOFCHAIN_BOOTSTRAP_ADMIN_ENABLED: ${PROOFCHAIN_BOOTSTRAP_ADMIN_ENABLED:-false}
+      PROOFCHAIN_BOOTSTRAP_ADMIN_USERNAME: ${PROOFCHAIN_BOOTSTRAP_ADMIN_USERNAME:-}
+      PROOFCHAIN_BOOTSTRAP_ADMIN_EMAIL: ${PROOFCHAIN_BOOTSTRAP_ADMIN_EMAIL:-}
+      PROOFCHAIN_BOOTSTRAP_ADMIN_PASSWORD: ${PROOFCHAIN_BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    # The image already declares this identity; repeating it here makes the
+    # non-root runtime an explicit, reviewable property of the deployment.
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      # The only writable location besides the evidence volume: JVM scratch data
+      # and Tomcat multipart spooling. Bounded, non-executable and wiped on every
+      # restart, so nothing durable can ever be smuggled outside the volume.
+      - /tmp:rw,noexec,nosuid,nodev,size=${PROOFCHAIN_TMPFS_SIZE:-256m},mode=1777
+    volumes:
+      - proofchain-evidence-data:/var/lib/proofchain/storage
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      # Reads the sanitized readiness group, which is green only once the context
+      # is ready, PostgreSQL answers and the evidence root is provably writable.
+      test: ["CMD", "/usr/local/bin/proofchain-health"]
+      interval: 10s
+      timeout: 15s
+      retries: 12
+      start_period: 30s
+    # Comfortably above the 30s Spring drain window, so SIGTERM always wins and
+    # Docker never has to escalate to SIGKILL during a normal stop.
+    stop_grace_period: 60s
+    # Deliberately no restart policy. The application is fail-fast: an invalid
+    # secret or an unusable storage root must stay down and visible rather than
+    # be hidden behind a restart loop.
+
+secrets:
+  # Build-time only, and empty by default. Point PROOFCHAIN_BUILD_CA_FILE at a
+  # PEM certificate when the network terminates TLS on the way to Maven Central.
+  # It is never copied into the runtime image and is not an application secret.
+  build-ca:
+    file: ${PROOFCHAIN_BUILD_CA_FILE:-/dev/null}
+
 volumes:
+  # Two independent named volumes. Evidence content and database state have
+  # different lifecycles and are never entangled in one mount.
   proofchain-postgres-data:
+  proofchain-evidence-data:

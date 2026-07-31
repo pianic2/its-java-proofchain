@@ -348,11 +348,41 @@ class CaseControllerWebMvcTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void undocumentedCaseRouteAliasesAreAbsentAtRuntime() throws Exception {
+        String token = bearer(admin);
+        UUID caseId = UUID.fromString("00000000-0000-4000-8000-000000000001");
+
+        mockMvc.perform(post("/api/v1/custody-cases")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("Alias must not create")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/resource-not-found"));
+        mockMvc.perform(get("/api/v1/case").header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/resource-not-found"));
+        mockMvc.perform(get("/api/v1/cases/{caseId}/memberships", caseId).header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/resource-not-found"));
+    }
+
+    @Test
     void openApiDocumentsAllCaseOperationsSchemasStatusesAndSecurity() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/case']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/custody-cases']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/memberships']")
+                        .doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/cases'].post.operationId").value("createCustodyCase"))
+                .andExpect(jsonPath("$.paths['/api/v1/cases'].post.tags[0]").value("Custody cases"))
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].post.security[0].bearerAuth")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases'].post.requestBody.required")
+                        .value(true))
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/cases'].post.requestBody.content['application/json'].examples.case.value.title")
+                        .value("Mobile device seizure"))
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].post.responses['201'].content['application/json']")
                         .exists())
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].post.responses['201'].headers.Location.required")
@@ -364,11 +394,26 @@ class CaseControllerWebMvcTest extends PostgreSqlIntegrationTest {
                 .andExpect(
                         jsonPath("$.paths['/api/v1/cases'].post.responses['400'].content['application/problem+json']")
                                 .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases'].post.responses")
+                        .value(org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.hasKey("201"),
+                                org.hamcrest.Matchers.hasKey("400"),
+                                org.hamcrest.Matchers.hasKey("401"),
+                                org.hamcrest.Matchers.hasKey("403"))))
                 .andExpect(jsonPath("$.paths['/api/v1/cases'].get.responses['200'].content['application/json']")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}'].get.operationId")
+                        .value("getCustodyCase"))
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}'].get.parameters[0].example")
+                        .value("1ca01c67-75b9-48e3-a2ed-72259373c67c"))
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/cases/{caseId}'].get.responses['404'].content['application/problem+json']")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}'].patch.requestBody.required")
+                        .value(true))
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/cases/{caseId}'].patch.requestBody.content['application/json'].examples.metadata.value.priority")
+                        .value("CRITICAL"))
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/cases/{caseId}'].patch.responses['403'].content['application/problem+json']")
                         .exists())
@@ -378,8 +423,33 @@ class CaseControllerWebMvcTest extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/cases/{caseId}/status'].patch.responses['409'].content['application/problem+json']")
                         .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/cases/{caseId}/status'].patch.requestBody.required")
+                        .value(true))
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/cases/{caseId}/status'].patch.requestBody.content['application/json'].examples.close.value.status")
+                        .value("CLOSED"))
                 .andExpect(jsonPath("$.components.schemas.CaseResponse.properties.version")
                         .doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.CaseResponse.description")
+                        .value("Custody case representation without persistence locking metadata."))
+                .andExpect(jsonPath("$.components.schemas.CaseResponse.properties.id.format")
+                        .value("uuid"))
+                .andExpect(jsonPath("$.components.schemas.CaseResponse.properties.closedAt.type")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder("string", "null")))
+                .andExpect(jsonPath("$.components.schemas.CaseResponse.required")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(
+                                "id",
+                                "title",
+                                "description",
+                                "authorityName",
+                                "externalReference",
+                                "location",
+                                "priority",
+                                "status",
+                                "createdBy",
+                                "createdAt",
+                                "updatedAt",
+                                "closedAt")))
                 .andExpect(jsonPath("$.components.schemas.CaseOperatorSummaryResponse.properties.email")
                         .doesNotExist())
                 .andExpect(jsonPath("$.components.schemas.CasePageResponse.properties.sort")
@@ -393,12 +463,16 @@ class CaseControllerWebMvcTest extends PostgreSqlIntegrationTest {
                         .value(3))
                 .andExpect(jsonPath("$.components.schemas.CreateCaseRequest.properties.title.maxLength")
                         .value(200))
+                .andExpect(jsonPath("$.components.schemas.CreateCaseRequest.properties.title.example")
+                        .value("Mobile device seizure"))
                 .andExpect(jsonPath("$.components.schemas.CreateCaseRequest.properties.description.maxLength")
                         .value(2000))
                 .andExpect(jsonPath("$.components.schemas.CreateCaseRequest.properties.location.maxLength")
                         .value(300))
                 .andExpect(jsonPath("$.components.schemas.PatchCaseMetadataRequest.additionalProperties")
                         .value(false))
+                .andExpect(jsonPath("$.components.schemas.PatchCaseMetadataRequest.minProperties")
+                        .value(1))
                 .andExpect(jsonPath("$.components.schemas.PatchCaseMetadataRequest.required")
                         .doesNotExist())
                 .andExpect(jsonPath("$.components.schemas.PatchCaseMetadataRequest.properties.title.minLength")

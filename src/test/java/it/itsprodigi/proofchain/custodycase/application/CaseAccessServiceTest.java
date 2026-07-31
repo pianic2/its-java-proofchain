@@ -93,6 +93,30 @@ class CaseAccessServiceTest {
     }
 
     @Test
+    void visibilityCheckNeverLoadsTheCaseAggregateAndHidesNonMemberCases() {
+        AuthenticatedOperator member = actor(OperatorRole.EVIDENCE_OFFICER);
+        when(memberships.existsByCustodyCaseIdAndOperatorId(caseId, member.id()))
+                .thenReturn(true);
+        when(custodyCases.existsById(caseId)).thenReturn(true);
+
+        service.requireVisibleCase(caseId, member);
+
+        verify(custodyCases, never()).findByIdWithCreatedBy(caseId);
+
+        UUID hiddenId = UUID.randomUUID();
+        when(memberships.existsByCustodyCaseIdAndOperatorId(hiddenId, member.id()))
+                .thenReturn(false);
+        assertThatThrownBy(() -> service.requireVisibleCase(hiddenId, member))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        AuthenticatedOperator admin = actor(OperatorRole.ADMIN);
+        UUID missingId = UUID.randomUUID();
+        when(custodyCases.existsById(missingId)).thenReturn(false);
+        assertThatThrownBy(() -> service.requireVisibleCase(missingId, admin))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
     void accessiblePageSelectionIsCentralizedForAdminAndMember() {
         var pageable = PageRequest.of(0, 20);
         AuthenticatedOperator admin = actor(OperatorRole.ADMIN);

@@ -2,6 +2,7 @@ package it.itsprodigi.proofchain.operator.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,10 +41,19 @@ public class OperatorController {
     }
 
     @PostMapping
-    @Operation(summary = "Create an operator", description = "Creates an ACTIVE operator with a BCrypt password hash.")
+    @Operation(
+            operationId = "createOperator",
+            summary = "Create an operator",
+            description = "Creates an ACTIVE operator with a BCrypt password hash.")
     @ApiResponse(
             responseCode = "201",
             description = "Operator created",
+            headers =
+                    @Header(
+                            name = "Location",
+                            description = "Canonical detail URI of the created operator",
+                            required = true,
+                            schema = @Schema(type = "string", format = "uri")),
             content =
                     @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -87,6 +97,7 @@ public class OperatorController {
 
     @GetMapping
     @Operation(
+            operationId = "listOperators",
             summary = "List operators",
             description = "Returns a deterministic, allowlisted-sorted page of operators.")
     @ApiResponse(
@@ -130,7 +141,7 @@ public class OperatorController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get operator details")
+    @Operation(operationId = "getOperator", summary = "Get operator details")
     @ApiResponse(
             responseCode = "200",
             description = "Operator details",
@@ -171,7 +182,7 @@ public class OperatorController {
     }
 
     @PatchMapping("/{id}/role")
-    @Operation(summary = "Update an operator role")
+    @Operation(operationId = "updateOperatorRole", summary = "Update an operator role")
     @ApiResponse(
             responseCode = "200",
             description = "Operator role updated",
@@ -222,7 +233,7 @@ public class OperatorController {
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Update an operator status")
+    @Operation(operationId = "updateOperatorStatus", summary = "Update an operator status")
     @ApiResponse(
             responseCode = "200",
             description = "Operator status updated",

@@ -11,6 +11,20 @@ import it.itsprodigi.proofchain.custodycase.application.ConcurrentMembershipConf
 import it.itsprodigi.proofchain.custodycase.application.InvalidCaseStatusTransitionException;
 import it.itsprodigi.proofchain.custodycase.application.LastCaseManagerRemovalException;
 import it.itsprodigi.proofchain.custodycase.application.OperatorNotActiveException;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyChainReadFailureException;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyEventConcurrencyConflictException;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyEventPersistenceFailureException;
+import it.itsprodigi.proofchain.custodyevent.application.EventNotFoundException;
+import it.itsprodigi.proofchain.evidence.application.CustodyTransferNoOpException;
+import it.itsprodigi.proofchain.evidence.application.DuplicateEvidenceReferenceTagException;
+import it.itsprodigi.proofchain.evidence.application.EmptyEvidenceException;
+import it.itsprodigi.proofchain.evidence.application.EvidenceFileUnavailableException;
+import it.itsprodigi.proofchain.evidence.application.EvidenceHolderNotEligibleException;
+import it.itsprodigi.proofchain.evidence.application.EvidenceRequestValidationException;
+import it.itsprodigi.proofchain.evidence.application.EvidenceStorageException;
+import it.itsprodigi.proofchain.evidence.application.EvidenceTooLargeException;
+import it.itsprodigi.proofchain.evidence.application.InvalidEvidenceStateException;
+import it.itsprodigi.proofchain.evidence.application.MetadataUpdateNoOpException;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
@@ -28,10 +42,14 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -157,6 +175,147 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    @ExceptionHandler(DuplicateEvidenceReferenceTagException.class)
+    ProblemDetail handleDuplicateEvidenceReferenceTag(
+            DuplicateEvidenceReferenceTagException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.DUPLICATE_EVIDENCE_REFERENCE_TAG,
+                "Duplicate evidence reference tag",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(EvidenceHolderNotEligibleException.class)
+    ProblemDetail handleEvidenceHolderNotEligible(
+            EvidenceHolderNotEligibleException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.HOLDER_NOT_ELIGIBLE,
+                "Evidence holder not eligible",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(CustodyTransferNoOpException.class)
+    ProblemDetail handleCustodyTransferNoOp(CustodyTransferNoOpException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CUSTODY_TRANSFER_NO_OP,
+                "Custody transfer no-op",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(MetadataUpdateNoOpException.class)
+    ProblemDetail handleMetadataUpdateNoOp(MetadataUpdateNoOpException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.METADATA_UPDATE_NO_OP,
+                "Metadata update no-op",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(EvidenceTooLargeException.class)
+    ProblemDetail handleEvidenceTooLarge(EvidenceTooLargeException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                ProblemTypes.PAYLOAD_TOO_LARGE,
+                "Payload too large",
+                "The evidence file exceeds the configured upload limit.",
+                request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ProblemDetail handleMultipartTooLarge(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                ProblemTypes.PAYLOAD_TOO_LARGE,
+                "Payload too large",
+                "The multipart request exceeds the configured upload limit.",
+                request);
+    }
+
+    @ExceptionHandler(EvidenceStorageException.class)
+    ProblemDetail handleEvidenceStorage(EvidenceStorageException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.STORAGE_FAILURE,
+                "Evidence storage failure",
+                "Evidence content could not be stored safely.",
+                request);
+    }
+
+    @ExceptionHandler(EvidenceFileUnavailableException.class)
+    ProblemDetail handleEvidenceFileUnavailable(
+            EvidenceFileUnavailableException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.EVIDENCE_FILE_UNAVAILABLE,
+                "Evidence file unavailable",
+                "Evidence content is unavailable.",
+                request);
+    }
+
+    @ExceptionHandler(EventNotFoundException.class)
+    ProblemDetail handleEventNotFound(EventNotFoundException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.NOT_FOUND,
+                ProblemTypes.EVENT_NOT_FOUND,
+                "Custody event not found",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(InvalidEvidenceStateException.class)
+    ProblemDetail handleInvalidEvidenceState(InvalidEvidenceStateException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.INVALID_EVIDENCE_STATE,
+                "Invalid evidence state",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(CustodyEventConcurrencyConflictException.class)
+    ProblemDetail handleCustodyEventConcurrencyConflict(
+            CustodyEventConcurrencyConflictException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CUSTODY_EVENT_CONCURRENCY_CONFLICT,
+                "Custody event concurrency conflict",
+                "The evidence was modified by another transaction. Retry using current data.",
+                request);
+    }
+
+    @ExceptionHandler(CustodyEventPersistenceFailureException.class)
+    ProblemDetail handleCustodyEventPersistenceFailure(
+            CustodyEventPersistenceFailureException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.CUSTODY_EVENT_PERSISTENCE_FAILURE,
+                "Custody event persistence failure",
+                "The custody event could not be persisted.",
+                request);
+    }
+
+    @ExceptionHandler(CustodyChainReadFailureException.class)
+    ProblemDetail handleCustodyChainReadFailure(
+            CustodyChainReadFailureException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.CUSTODY_CHAIN_READ_FAILURE,
+                "Custody chain read failure",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(EmptyEvidenceException.class)
+    ProblemDetail handleEmptyEvidence(EmptyEvidenceException exception, HttpServletRequest request) {
+        return validationProblem(request);
+    }
+
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail handleOptimisticLockingFailure(
             OptimisticLockingFailureException exception, HttpServletRequest request) {
@@ -237,7 +396,19 @@ public class GlobalExceptionHandler {
         return validationProblem(request);
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler(EvidenceRequestValidationException.class)
+    ProblemDetail handleEvidenceRequestValidation(
+            EvidenceRequestValidationException exception, HttpServletRequest request) {
+        return validationProblem(request);
+    }
+
+    @ExceptionHandler({
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class,
+        HttpMediaTypeNotSupportedException.class,
+        MissingServletRequestPartException.class,
+        MultipartException.class
+    })
     ProblemDetail handleInvalidRequestBinding(Exception exception, HttpServletRequest request) {
         return validationProblem(request);
     }

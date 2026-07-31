@@ -2,17 +2,31 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
-    <appender name="AUTH_AUDIT_FILE" class="ch.qos.logback.core.FileAppender">
-        <file>auth.log</file>
-        <append>true</append>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,UTC} %-5level %logger{20} - %msg%n</pattern>
-        </encoder>
-    </appender>
+    <!--
+        Host execution keeps the authentication audit trail in a dedicated local file. The container runs on a
+        read-only root filesystem whose only writable locations are the evidence volume and a bounded tmpfs, so the
+        `container` profile routes the same audit logger to standard output, where the container log driver collects
+        it. No third writable mount and no log volume is introduced.
+    -->
+    <springProfile name="!container">
+        <appender name="AUTH_AUDIT_FILE" class="ch.qos.logback.core.FileAppender">
+            <file>auth.log</file>
+            <append>true</append>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,UTC} %-5level %logger{20} - %msg%n</pattern>
+            </encoder>
+        </appender>
 
-    <logger name="AUTH_AUDIT" level="INFO" additivity="false">
-        <appender-ref ref="AUTH_AUDIT_FILE"/>
-    </logger>
+        <logger name="AUTH_AUDIT" level="INFO" additivity="false">
+            <appender-ref ref="AUTH_AUDIT_FILE"/>
+        </logger>
+    </springProfile>
+
+    <springProfile name="container">
+        <logger name="AUTH_AUDIT" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

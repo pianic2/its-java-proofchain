@@ -10,10 +10,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @ActiveProfiles("test")
 public abstract class PostgreSqlIntegrationTest {
 
+    /**
+     * The integration suite keeps one Spring context alive per distinct test configuration, and every context owns its
+     * own connection pool, so the default backend limit is raised to leave headroom as the suite grows. This is a
+     * capacity setting only: no isolation, durability or locking behavior is relaxed.
+     */
     protected static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.4-trixie")
             .withDatabaseName("proofchain_test")
             .withUsername("proofchain_test")
-            .withPassword("proofchain_test");
+            .withPassword("proofchain_test")
+            .withCommand("postgres", "-c", "max_connections=400");
 
     static {
         POSTGRES.start();

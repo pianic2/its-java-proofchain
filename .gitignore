@@ -1,8 +1,41 @@
+# --- Build output and generated reports ---
+# `target/` also covers every generated report: surefire, failsafe, JaCoCo, the CycloneDX SBOM and the
+# OWASP Dependency-Check output, all of which are written under it. Generated reports are release
+# evidence, never tracked source.
+target/
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
-target/
+
+# --- Runtime evidence storage ---
+# Anchored to the repository root: this is the local evidence directory created by the `local`
+# profile. Unanchored, the pattern also matched the `evidence/storage` source package and silently
+# excluded every new file added to it.
+/storage/
+
+# --- Secrets and local environment ---
+# `.env.example` is tracked on purpose: it is the placeholder-only reference, and no value in it is usable.
 .env
+.env.local
+.env.*.local
+
+# --- Logs ---
 *.log
+
+# --- Database dumps and archives produced by backup or restore runs ---
+*.dump
+*.sql.gz
+*.tar.gz
+
+# --- Local Postman / Newman run state ---
+# The delivered collection and the placeholder-only environment under `postman/` are tracked source and
+# are deliberately not matched here. Only run output is ignored.
+newman/
+postman/newman/
+
+# --- Temporary and editor files ---
+*.tmp
+*.bak
+*~
 .idea/
 *.iml
 .vscode/

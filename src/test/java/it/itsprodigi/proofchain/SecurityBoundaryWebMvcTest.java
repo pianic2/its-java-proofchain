@@ -2,6 +2,7 @@ package it.itsprodigi.proofchain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -148,6 +149,21 @@ class SecurityBoundaryWebMvcTest extends PostgreSqlIntegrationTest {
                 .andExpect(header().doesNotExist("Set-Cookie"))
                 .andReturn();
         assertThat(result.getRequest().getSession(false)).isNull();
+    }
+
+    @Test
+    void crossOriginRequestsAreDeniedByDefaultOnPublicAndProtectedPaths() throws Exception {
+        mockMvc.perform(get("/v3/api-docs").header("Origin", "https://attacker.example.org"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Credentials"));
+        mockMvc.perform(get("/fixture/protected").header("Origin", "https://attacker.example.org"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+        mockMvc.perform(options("/api/v1/auth/login")
+                        .header("Origin", "https://attacker.example.org")
+                        .header("Access-Control-Request-Method", "POST"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
 
     @Test

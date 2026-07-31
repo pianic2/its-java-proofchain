@@ -1,6 +1,7 @@
 package it.itsprodigi.proofchain.custodycase.persistence;
 
 import it.itsprodigi.proofchain.custodycase.domain.CaseMembership;
+import it.itsprodigi.proofchain.operator.domain.Operator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +25,28 @@ public interface CaseMembershipRepository extends JpaRepository<CaseMembership, 
             @Param("caseId") UUID caseId, @Param("operatorId") UUID operatorId);
 
     boolean existsByCustodyCaseIdAndOperatorId(UUID caseId, UUID operatorId);
+
+    /**
+     * Single anti-enumeration lookup of an operator that may take custody of evidence in the given case.
+     *
+     * <p>Membership, {@code ACTIVE} status and the allowed role set are evaluated by one query, so a nonexistent,
+     * non-member, inactive, suspended, disabled or disallowed-role target is indistinguishable: every cause returns the
+     * same empty result and therefore the same conflict.
+     */
+    @Transactional(readOnly = true)
+    @Query("""
+            SELECT membership.operator
+            FROM CaseMembership membership
+            WHERE membership.custodyCase.id = :caseId
+              AND membership.operator.id = :operatorId
+              AND membership.operator.status = it.itsprodigi.proofchain.operator.domain.OperatorStatus.ACTIVE
+              AND membership.operator.role IN (
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.ADMIN,
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.CASE_MANAGER,
+                  it.itsprodigi.proofchain.operator.domain.OperatorRole.EVIDENCE_OFFICER
+              )
+            """)
+    Optional<Operator> findEligibleEvidenceHolder(@Param("caseId") UUID caseId, @Param("operatorId") UUID operatorId);
 
     @Transactional(readOnly = true)
     @EntityGraph(attributePaths = {"operator", "assignedBy"})

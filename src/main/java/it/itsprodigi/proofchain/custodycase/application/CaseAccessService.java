@@ -35,6 +35,22 @@ public class CaseAccessService {
         return custodyCases.findByIdWithCreatedBy(caseId).orElseThrow(ResourceNotFoundException::new);
     }
 
+    /**
+     * Visibility check that never loads the custody case aggregate, so a caller can safely acquire the case lock
+     * afterwards and observe the state committed at lock acquisition time.
+     */
+    @Transactional(readOnly = true)
+    public void requireVisibleCase(UUID caseId, AuthenticatedOperator actor) {
+        Objects.requireNonNull(caseId, "caseId must not be null");
+        Objects.requireNonNull(actor, "actor must not be null");
+        if (actor.role() != OperatorRole.ADMIN && !memberships.existsByCustodyCaseIdAndOperatorId(caseId, actor.id())) {
+            throw new ResourceNotFoundException();
+        }
+        if (!custodyCases.existsById(caseId)) {
+            throw new ResourceNotFoundException();
+        }
+    }
+
     @Transactional(readOnly = true)
     public Page<CustodyCase> findAccessibleCases(Pageable pageable, AuthenticatedOperator actor) {
         Objects.requireNonNull(pageable, "pageable must not be null");
@@ -57,6 +73,17 @@ public class CaseAccessService {
     @Transactional(readOnly = true)
     public CustodyCase requireClosurePermission(UUID caseId, AuthenticatedOperator actor) {
         return requireCaseManagerPermission(caseId, actor);
+    }
+
+    @Transactional(readOnly = true)
+    public CustodyCase requireEvidenceRegistrationPermission(UUID caseId, AuthenticatedOperator actor) {
+        CustodyCase custodyCase = requireReadableCase(caseId, actor);
+        if (actor.role() != OperatorRole.ADMIN
+                && actor.role() != OperatorRole.CASE_MANAGER
+                && actor.role() != OperatorRole.EVIDENCE_OFFICER) {
+            throw new AccessDeniedException("The visible custody case cannot receive evidence from this operator.");
+        }
+        return custodyCase;
     }
 
     private CustodyCase requireCaseManagerPermission(UUID caseId, AuthenticatedOperator actor) {

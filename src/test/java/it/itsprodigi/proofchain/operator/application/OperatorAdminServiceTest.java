@@ -30,6 +30,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -113,8 +114,8 @@ class OperatorAdminServiceTest {
             ArgumentCaptor<Operator> saved = ArgumentCaptor.forClass(Operator.class);
             verify(operators).saveAndFlush(saved.capture());
             assertThat(saved.getValue().getUsername())
-                    .isEqualTo("user-" + role.name().toLowerCase());
-            assertThat(saved.getValue().getEmail()).isEqualTo(role.name().toLowerCase() + "@example.com");
+                    .isEqualTo("user-" + role.name().toLowerCase(Locale.ROOT));
+            assertThat(saved.getValue().getEmail()).isEqualTo(role.name().toLowerCase(Locale.ROOT) + "@example.com");
             assertThat(saved.getValue().getPasswordHash()).startsWith("$2").hasSize(60);
             assertThat(passwordEncoder.matches(PASSWORD, saved.getValue().getPasswordHash()))
                     .isTrue();
@@ -210,7 +211,7 @@ class OperatorAdminServiceTest {
         verify(operators, never()).flush();
 
         for (OperatorStatus inactive : new OperatorStatus[] {OperatorStatus.SUSPENDED, OperatorStatus.DISABLED}) {
-            Operator operator = operator(inactive.name().toLowerCase(), OperatorRole.AUDITOR, inactive);
+            Operator operator = operator(inactive.name().toLowerCase(Locale.ROOT), OperatorRole.AUDITOR, inactive);
             when(operators.findById(operator.getId())).thenReturn(Optional.of(operator));
             assertThat(service.updateStatus(
                                     operator.getId(),

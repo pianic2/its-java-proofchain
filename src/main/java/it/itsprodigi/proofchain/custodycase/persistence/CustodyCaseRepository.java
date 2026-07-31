@@ -25,6 +25,10 @@ public interface CustodyCaseRepository extends JpaRepository<CustodyCase, UUID> 
     @Query("SELECT custodyCase FROM CustodyCase custodyCase WHERE custodyCase.id = :caseId")
     Optional<CustodyCase> findByIdForUpdate(@Param("caseId") UUID caseId);
 
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("SELECT custodyCase FROM CustodyCase custodyCase WHERE custodyCase.id = :caseId")
+    Optional<CustodyCase> findByIdForShare(@Param("caseId") UUID caseId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT custodyCase FROM CustodyCase custodyCase WHERE custodyCase.id IN :caseIds ORDER BY custodyCase.id")
     List<CustodyCase> lockAllByIdInOrderById(@Param("caseIds") List<UUID> caseIds);
