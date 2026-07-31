@@ -34,6 +34,7 @@ import java.util.Set;
 public final class FileSystemEvidenceStorage implements EvidenceStoragePort {
 
     private static final int BUFFER_SIZE = 8192;
+    private static final int MAXIMUM_STALLED_READS = 64;
     private static final LinkOption[] NOFOLLOW = {LinkOption.NOFOLLOW_LINKS};
     private static final Set<OpenOption> READ_NOFOLLOW = Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
 
@@ -62,6 +63,7 @@ public final class FileSystemEvidenceStorage implements EvidenceStoragePort {
             MessageDigest digest = newSha256();
             byte[] buffer = new byte[BUFFER_SIZE];
             long byteCount = 0;
+            int stalledReads = 0;
             while (true) {
                 long remaining = maximumBytes - byteCount;
                 int requested = remaining >= BUFFER_SIZE ? BUFFER_SIZE : Math.toIntExact(remaining + 1);
@@ -70,8 +72,15 @@ public final class FileSystemEvidenceStorage implements EvidenceStoragePort {
                     break;
                 }
                 if (read == 0) {
+                    // A source that never returns a byte and never signals the end of the stream violates the
+                    // InputStream contract. Tolerating it forever would let one upload occupy a request thread and a
+                    // staged temporary file indefinitely, so progress is required within a bounded number of reads.
+                    if (++stalledReads > MAXIMUM_STALLED_READS) {
+                        throw new EvidenceStorageFailureException("Unable to stage evidence content");
+                    }
                     continue;
                 }
+                stalledReads = 0;
                 if (read > remaining) {
                     throw new EvidenceTooLargeException(maximumBytes);
                 }

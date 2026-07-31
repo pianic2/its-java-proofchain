@@ -158,6 +158,99 @@ The application never degrades and never retries indefinitely, and the Compose s
 - Evidence storage paths are derived from case and evidence identifiers, never from an uploaded filename; see [Digital Evidence](./DigitalEvidence.md).
 - Authentication audit events are written to `auth.log` on the host and to standard output under the `container` profile, so the read-only root filesystem needs no third writable mount.
 
+## Evidence storage integrity
+
+### The bounded crash window
+
+Registration finalizes the evidence file and then commits the database transaction. Between those two
+steps there is a window, bounded by the length of the commit, in which the process can die with the
+final file already in place and no committed row referencing it. The reverse is impossible: the row
+is never committed before the file exists.
+
+A crash inside that window therefore leaves a file without a row, never a row without a file. That
+file is intact evidence content, not garbage. Nothing in ProofChain deletes it, and nothing ever
+will: an automatic sweep would destroy exactly the material a chain of custody exists to preserve,
+and it cannot distinguish a crash remnant from content whose row was removed by an attacker.
+
+A row without a file can still occur, but only through action outside the application: a restore that
+covered the database and not the storage volume, a manual deletion, or a failing disk.
+
+### The offline orphan report
+
+The report is a read-only diagnostic. It has no HTTP endpoint, it never runs at startup, during a
+health probe or on a schedule, and it creates, moves, rewrites, quarantines and deletes nothing. It
+runs only when the process is started with the exact enabling argument, in a non-web context, with
+read-only database access.
+
+```bash
+java -jar target/proofchain-1.0.0.jar --proofchain.maintenance.orphan-report.enabled=true
+```
+
+Write the document to a file instead of standard output with
+`--proofchain.maintenance.orphan-report.output=/path/report.json`. The destination must lie outside
+the evidence storage root and is never overwritten.
+
+Exit codes: `0` clean, `2` findings present, `1` the report could not be produced.
+
+Findings are classified as:
+
+| Classification | Meaning |
+| --- | --- |
+| `MISSING_CONTENT` | a legitimate evidence row references content that is absent or unusable |
+| `ORPHAN_CONTENT` | a canonical final content file exists and no evidence row references it |
+| `UNSAFE_CONTENT` | the path is symlinked, non-regular, outside the resolved root or otherwise unsafe |
+| `UNEXPECTED_ENTRY` | an entry under the storage root does not match the canonical layout |
+
+The document carries only a classification, a closed-vocabulary reason and a storage-root relative
+path. It can never carry an absolute host path, an original upload file name, a media type, a hash,
+a byte count or any other evidence metadata: the finding type rejects anything else at construction.
+When an evidence row holds a storage key that is not canonical, the key is attacker-influenced and is
+withheld entirely; the report publishes the evidence identifier instead so an investigation still has
+a database key to start from.
+
+Two scans of an unchanged database and an unchanged storage tree render byte-identical documents, so
+reports are directly comparable across an investigation.
+
+### Non-destructive investigation
+
+The report tells you what is inconsistent. It never tells the system to act, and no ProofChain
+command reconciles storage automatically.
+
+1. Take the report and keep it. Do not modify the storage tree first.
+2. For `MISSING_CONTENT`, leave the row untouched. Download and integrity verification already fail
+   for that evidence with the approved sanitized technical problem documents, which is the correct
+   operational signal. Treat it as blocking evidence of a real incident and look for a restore that
+   covered only one of the two stores.
+3. For `ORPHAN_CONTENT`, preserve the file. It is never exposed through the API, and it must not be
+   deleted on the assumption that it is a crash remnant. Correlate its case and evidence identifiers
+   with the custody event history and with the deployment timeline before concluding anything.
+4. For `UNSAFE_CONTENT`, do not follow or open the path. A symbolic link under the storage root was
+   not created by this application.
+5. For `UNEXPECTED_ENTRY`, establish who wrote it. The runtime user can only write the evidence
+   volume and the bounded temporary mount.
+6. Any corrective action — moving, deleting or reinserting anything — is a Project Owner decision,
+   taken by hand, after the root cause is understood.
+
+### Coordinated backup and restore
+
+The database and the evidence volume are one logical unit. A backup that covers one and not the
+other produces exactly the inconsistencies the report classifies.
+
+ProofChain deliberately ships no backup endpoint, no scheduler and no automated restore. Backups are
+an operator responsibility, performed with the stack stopped:
+
+```bash
+docker compose stop proofchain
+docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > proofchain-db.dump
+docker run --rm -v proofchain-evidence-data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/proofchain-evidence.tar.gz -C /data .
+docker compose start proofchain
+```
+
+Both artifacts must be taken from the same stopped state and restored together. After any restore,
+run the orphan report before returning the system to service: a clean report is the evidence that the
+two stores agree.
+
 ## Known limitations
 
 - The aggregate `/actuator/health` response includes the names of its two groups (`liveness`, `readiness`). Spring Boot offers no switch to suppress them; they name probes that are already public and reveal nothing about the deployment.
