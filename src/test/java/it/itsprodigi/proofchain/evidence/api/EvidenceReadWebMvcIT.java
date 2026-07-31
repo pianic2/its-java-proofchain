@@ -343,7 +343,10 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
         String list = "$.paths['" + caseEvidencePath + "'].get";
         String detail = "$.paths['" + detailPath + "'].get";
         String download = "$.paths['" + downloadPath + "'].get";
-        var result = mockMvc.perform(get("/v3/api-docs"))
+        // The complete path/method allowlist for the whole API lives in the single authoritative
+        // it.itsprodigi.proofchain.ApiSurfaceContractIT; this suite pins only the response policies of the four
+        // read-side operations it owns, so the surface is enumerated in exactly one place.
+        mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(registration + ".operationId").value("registerDigitalEvidence"))
                 .andExpect(jsonPath(list + ".responses['200']").exists())
@@ -367,46 +370,7 @@ class EvidenceReadWebMvcIT extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath(download + ".responses['404']").exists())
                 .andExpect(jsonPath(download + ".responses['500']").exists())
                 .andExpect(jsonPath("$.components.schemas.EvidenceSummaryResponse.properties.*", hasSize(18)))
-                .andExpect(jsonPath("$.components.schemas.EvidencePageResponse.properties.*", hasSize(5)))
-                .andReturn();
-
-        var paths = tools.jackson.databind.json.JsonMapper.builder()
-                .build()
-                .readTree(result.getResponse().getContentAsString())
-                .get("paths");
-        String timelinePath = "/api/v1/evidences/{evidenceId}/events";
-        String eventDetailPath = "/api/v1/evidences/{evidenceId}/events/{eventId}";
-        String verifyChainPath = "/api/v1/evidences/{evidenceId}/verify-chain";
-        String transferPath = "/api/v1/evidences/{evidenceId}/transfer";
-        String metadataPath = "/api/v1/evidences/{evidenceId}/metadata";
-        String verifyIntegrityPath = "/api/v1/evidences/{evidenceId}/verify-integrity";
-        String sealPath = "/api/v1/evidences/{evidenceId}/seal";
-        String releasePath = "/api/v1/evidences/{evidenceId}/release";
-        assertThat(paths.propertyNames())
-                .filteredOn(path -> path.contains("/evidences"))
-                .containsExactlyInAnyOrder(
-                        caseEvidencePath,
-                        detailPath,
-                        downloadPath,
-                        timelinePath,
-                        eventDetailPath,
-                        verifyChainPath,
-                        transferPath,
-                        metadataPath,
-                        verifyIntegrityPath,
-                        sealPath,
-                        releasePath);
-        assertThat(paths.get(caseEvidencePath).propertyNames()).containsExactlyInAnyOrder("get", "post");
-        assertThat(paths.get(detailPath).propertyNames()).containsExactly("get");
-        assertThat(paths.get(downloadPath).propertyNames()).containsExactly("get");
-        assertThat(paths.get(timelinePath).propertyNames()).containsExactly("get");
-        assertThat(paths.get(eventDetailPath).propertyNames()).containsExactly("get");
-        assertThat(paths.get(verifyChainPath).propertyNames()).containsExactly("post");
-        assertThat(paths.get(transferPath).propertyNames()).containsExactly("post");
-        assertThat(paths.get(metadataPath).propertyNames()).containsExactly("patch");
-        assertThat(paths.get(verifyIntegrityPath).propertyNames()).containsExactly("post");
-        assertThat(paths.get(sealPath).propertyNames()).containsExactly("post");
-        assertThat(paths.get(releasePath).propertyNames()).containsExactly("post");
+                .andExpect(jsonPath("$.components.schemas.EvidencePageResponse.properties.*", hasSize(5)));
     }
 
     private ResultActions download(UUID evidenceId, Operator reader, String range) throws Exception {

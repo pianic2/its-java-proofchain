@@ -1,5 +1,6 @@
 package it.itsprodigi.proofchain.auth.api;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -33,6 +34,7 @@ public class AuthController {
     @PostMapping("/login")
     @SecurityRequirements
     @Operation(
+            operationId = "login",
             summary = "Authenticate an operator",
             description = "Authenticates an ACTIVE operator by normalized username and password.")
     @ApiResponse(
@@ -63,6 +65,14 @@ public class AuthController {
                 .body(authenticationService.login(request));
     }
 
+    /**
+     * Method guard, not an operation. Without an explicit handler a {@code GET} on the login path would raise
+     * {@code HttpRequestMethodNotSupportedException} and be translated into a {@code 500} by the catch-all advice, so
+     * the guard exists purely to answer the correct {@code 405}. It is hidden from the published contract because the
+     * approved surface contains no readable login resource, and an advertised operation here would be an accidental
+     * endpoint the allowlist test is meant to catch.
+     */
+    @Hidden
     @GetMapping("/login")
     public ResponseEntity<Void> loginWithUnsupportedMethod() {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
@@ -71,6 +81,7 @@ public class AuthController {
     @GetMapping("/me")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
+            operationId = "getCurrentOperator",
             summary = "Get the current operator",
             description = "Returns the immutable database-backed operator identity authenticated for this request.")
     @ApiResponse(

@@ -115,6 +115,10 @@ The generated OpenAPI document and Swagger UI are public at `/v3/api-docs` and `
 
 Application and security errors use the Spring Problem Details media type `application/problem+json` and the repository's existing problem-type contracts.
 
+The runtime-generated document is the single API documentation source; the repository maintains no separate specification file that could diverge from it. `ApiSurfaceContractIT` is the authoritative allowlist: it reconciles the live Spring request mappings, the generated document, the Problem Details catalogue and the delivered Postman collection against one table of approved endpoints.
+
+A ready-to-run Postman package covering the complete surface is delivered under [postman/](./postman/README.md).
+
 ## Project structure
 
 ```text
@@ -143,6 +147,7 @@ Start with the [technical documentation home](./docs/README.md), then follow the
 - [Container operations](./docs/Operations.md) — Docker Compose runtime, image layout, non-root and read-only guarantees, named volumes, health and readiness contract, and operational commands.
 - [Database schema lifecycle](./docs/Database-Schema-Lifecycle.md) — certified baseline matrix, recorded checksums, clean database creation, supported upgrade paths, failure modes, and manual recovery.
 - [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
+- [Postman delivery package](./postman/README.md) — ordered collection, placeholder-only local environment, preconditions, GUI and Newman execution, and the secret-hygiene gate.
 - [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
 - [MIT license](./LICENSE) — project licensing terms.
 
