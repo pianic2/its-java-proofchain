@@ -272,9 +272,13 @@ class EvidenceMetadataUpdateServiceIT extends PostgreSqlIntegrationTest {
     }
 
     /**
-     * The canonicalization row needs no mock: a reason carrying an unpaired surrogate is accepted by the reason
-     * contract but cannot be canonicalized, so the failure happens between the aggregate mutation and the custody event
-     * insert, exactly where atomicity must hold.
+     * The canonicalization row needs no mock: a title carrying an unpaired surrogate is accepted by the descriptive
+     * metadata contract but cannot be canonicalized, so the failure happens between the aggregate mutation and the
+     * custody event insert, exactly where atomicity must hold.
+     *
+     * <p>The reason field cannot be used as the trigger any more: {@code EvidenceCommandReason} now rejects unpaired
+     * surrogates so that malformed client input fails closed as a 400 instead of surfacing as a sanitized 500.
+     * Descriptive metadata fields are still not surrogate-validated, which is what keeps this row reachable.
      */
     @ParameterizedTest(name = "{0}")
     @EnumSource(WriteFailure.class)
@@ -282,7 +286,7 @@ class EvidenceMetadataUpdateServiceIT extends PostgreSqlIntegrationTest {
         DigitalEvidence stored = reload();
         switch (failure) {
             case CANONICALIZATION -> {
-                // the unpaired surrogate in the reason below is the trigger; no stubbing is required
+                // the unpaired surrogate in the title below is the trigger; no stubbing is required
             }
             case APPENDER_INSERT ->
                 doThrow(new DataIntegrityViolationException("forced custody event insert failure"))
@@ -297,10 +301,10 @@ class EvidenceMetadataUpdateServiceIT extends PostgreSqlIntegrationTest {
                         .when(evidences)
                         .saveAndFlush(any(DigitalEvidence.class));
         }
-        String reason = failure == WriteFailure.CANONICALIZATION ? "\\ud800" : REASON;
+        String title = failure == WriteFailure.CANONICALIZATION ? "Rolled back \\ud800" : "Rolled back";
 
         assertThatThrownBy(() ->
-                        update(manager, target.getId(), "{\"title\":\"Rolled back\",\"reason\":\"" + reason + "\"}"))
+                        update(manager, target.getId(), "{\"title\":\"" + title + "\",\"reason\":\"" + REASON + "\"}"))
                 .isInstanceOf(failure.expected);
 
         DigitalEvidence unchanged = reload();

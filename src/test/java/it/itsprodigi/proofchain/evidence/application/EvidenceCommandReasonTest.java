@@ -40,6 +40,17 @@ class EvidenceCommandReasonTest {
     }
 
     @Test
+    void unpairedSurrogatesAreRejectedBeforeTheAggregateIsMutated() {
+        assertThatThrownBy(() -> EvidenceCommandReason.require("handover \uD83D to laboratory"))
+                .isInstanceOf(EvidenceRequestValidationException.class);
+        assertThatThrownBy(() -> EvidenceCommandReason.require("handover to laboratory \uD83D"))
+                .isInstanceOf(EvidenceRequestValidationException.class);
+        assertThatThrownBy(() -> EvidenceCommandReason.require("\uDE00 handover to laboratory"))
+                .isInstanceOf(EvidenceRequestValidationException.class);
+        assertThat(EvidenceCommandReason.require("handover to laboratory 😀")).isEqualTo("handover to laboratory 😀");
+    }
+
+    @Test
     void applicationValidationAgreesWithTheFrozenPayloadValidation() {
         String reason = EvidenceCommandReason.require("  transfer for analysis  ");
 
