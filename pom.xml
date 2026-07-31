@@ -91,12 +91,13 @@
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${testcontainers.version}</version>
-            <scope>test</scope>
-        </dependency>
+        <!--
+            `org.testcontainers:postgresql` is the only Testcontainers module this repository uses directly. It
+            supplies `PostgreSQLContainer` and, through `jdbc` -> `database-commons`, the Testcontainers core. The
+            `junit-jupiter` module was declared but never used: no test imports `org.testcontainers.junit.jupiter`
+            and none is annotated `@Testcontainers`. The single container is started from a static initializer in
+            `PostgreSqlIntegrationTest`, so the JUnit 5 extension the module provides is never activated.
+        -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
@@ -199,6 +200,15 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
+                    <!--
+                        The only exclusion is the informative bounded performance smoke, which the `performance-smoke`
+                        profile runs on demand. It asserts no timing and gates nothing, so keeping it out of the
+                        canonical build removes a slow, machine-dependent step without weakening any regression test.
+                        No other test is excluded here or anywhere else.
+                    -->
+                    <excludes>
+                        <exclude>**/BoundedPerformanceSmokeIT.java</exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
@@ -215,4 +225,104 @@
             </plugin>
         </plugins>
     </build>
+
+    <!--
+        Release-evidence profiles. Both are inactive unless requested on the command line and neither declares a
+        lifecycle execution, so `mvn clean verify` is byte-for-byte unchanged and no GitHub Actions workflow is
+        touched. Both plugins are version-pinned so the evidence is reproducible. Neither profile adds a runtime
+        dependency: the plugins run at build time only and nothing they produce is packaged into the application.
+    -->
+    <profiles>
+        <profile>
+            <!--
+                CycloneDX SBOM, informative release evidence only.
+                Generate with:
+                  ./mvnw -Prelease-sbom org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom
+            -->
+            <id>release-sbom</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>2.9.3</version>
+                        <configuration>
+                            <projectType>application</projectType>
+                            <schemaVersion>1.6</schemaVersion>
+                            <outputDirectory>${project.build.directory}/sbom</outputDirectory>
+                            <outputName>proofchain-${project.version}-sbom</outputName>
+                            <outputFormat>all</outputFormat>
+                            <includeBomSerialNumber>true</includeBomSerialNumber>
+                            <includeCompileScope>true</includeCompileScope>
+                            <includeProvidedScope>true</includeProvidedScope>
+                            <includeRuntimeScope>true</includeRuntimeScope>
+                            <includeSystemScope>true</includeSystemScope>
+                            <!-- Test-scope artifacts are not shipped, so they are not part of the product SBOM. -->
+                            <includeTestScope>false</includeTestScope>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <!--
+                Bounded, informative performance smoke. It claims no SLA, capacity or throughput and asserts only
+                correctness invariants. Run with:
+                  ./mvnw -Pperformance-smoke -Dit.test=BoundedPerformanceSmokeIT verify
+            -->
+            <id>performance-smoke</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/BoundedPerformanceSmokeIT.java</include>
+                            </includes>
+                            <excludes combine.self="override"/>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <!--
+                Pinned OWASP Dependency-Check. It requires network access to the NVD data feeds
+                (services.nvd.nist.gov) and to the plugin's hosted mirrors. Run with:
+                  ./mvnw -Pdependency-check org.owasp:dependency-check-maven:12.2.2:check
+                An applicable finding at CVSS >= 7 fails the run and is a release blocker.
+            -->
+            <id>dependency-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>12.2.2</version>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/dependency-check</outputDirectory>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <skipTestScope>false</skipTestScope>
+                            <skipProvidedScope>false</skipProvidedScope>
+                            <!--
+                                Analyzers for ecosystems this repository does not use stay off so the report cannot
+                                report on artifacts that are not part of the product.
+                            -->
+                            <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                            <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+                            <nodeAuditAnalyzerEnabled>false</nodeAuditAnalyzerEnabled>
+                            <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

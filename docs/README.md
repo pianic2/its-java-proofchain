@@ -35,6 +35,7 @@ The recommended path is:
 - [Container operations](./Operations.md) — image build, non-root runtime, read-only root filesystem, named volumes, health and readiness contract, and the build, start, inspect, restart, shutdown, and destructive reset commands.
 - [Database schema lifecycle](./Database-Schema-Lifecycle.md) — certified baseline matrix, recorded checksums, clean creation, supported upgrade paths, failure modes, and the manual recovery runbook.
 - [Architecture Decision Records](./adr/README.md) — accepted project, Sprint 1, Sprint 2, Sprint 3, Sprint 4, and Sprint 5 architectural decisions.
+- [Security and dependency review 1.0.0](./release/1.0.0/Security-And-Dependency-Review.md) — release evidence: secret scan, CycloneDX SBOM, the environment-blocked OWASP Dependency-Check run, dependency inventory, locale and timezone execution, log and API leak audit, bounded performance smoke, and the test categorisation.
 - [Database migrations](../src/main/resources/db/migration/README.md) — rules for Flyway-managed schema evolution.
 - [Project README](../README.md) — prerequisites, local startup, public API entry points, and the canonical Maven command.
 - [Contributing to ProofChain](../CONTRIBUTING.md) — branch, commit, review, quality, and evidence conventions.
@@ -62,7 +63,8 @@ Flyway is the schema authority; Hibernate validates rather than creates the sche
 │   ├── Operational-Custody-Workflows.md  # Sprint 5 transfer, metadata, integrity, seal, release guide
 │   ├── Operations.md             # Docker Compose runtime, health contract, operational commands
 │   ├── Database-Schema-Lifecycle.md  # certified baselines, upgrade paths, failure and recovery runbook
-│   └── adr/                      # accepted architecture decisions
+│   ├── adr/                      # accepted architecture decisions
+│   └── release/1.0.0/            # release evidence: security, dependency and performance review
 ├── src/main/java/it/itsprodigi/proofchain/
 │   ├── auth/                     # login, JWT, request authentication, audit events
 │   ├── operator/                 # API, application rules, domain, persistence

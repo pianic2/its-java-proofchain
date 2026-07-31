@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,7 +62,8 @@ class EvidenceHashingAndStorageKeyTest {
         assertThatNullPointerException()
                 .isThrownBy(() -> EvidenceHashing.contextualSha256(null, EVIDENCE_ID, ABC_SHA_256));
         assertThatNullPointerException().isThrownBy(() -> EvidenceHashing.contextualSha256(CASE_ID, null, ABC_SHA_256));
-        assertThatThrownBy(() -> EvidenceHashing.contextualSha256(CASE_ID, EVIDENCE_ID, ABC_SHA_256.toUpperCase()))
+        assertThatThrownBy(() ->
+                        EvidenceHashing.contextualSha256(CASE_ID, EVIDENCE_ID, ABC_SHA_256.toUpperCase(Locale.ROOT)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> EvidenceHashing.contextualSha256(CASE_ID, EVIDENCE_ID, "abc"))
                 .isInstanceOf(IllegalArgumentException.class);
