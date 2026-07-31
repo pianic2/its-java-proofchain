@@ -38,7 +38,7 @@ The slice must stay reviewable and time-bounded. It must reuse the ADR-004 case 
 - A PostgreSQL `BEFORE UPDATE OR DELETE` trigger rejects every mutation with SQL state `55000`. Application-level restrictions reinforce it: an `@Immutable` entity with non-updatable columns, a minimal repository interface that publishes only saves, an existence check and deterministic reads, and no public endpoint that writes events.
 - `CustodyEventAppender` is the single writer and uses `MANDATORY` transaction propagation, so an event can only be written inside a caller's business transaction and can never commit independently of the change it records.
 - Chain writes serialize on a `PESSIMISTIC_WRITE` lock of the evidence row. Same-evidence appends are deterministic and gapless; different-evidence appends proceed in parallel without global serialization.
-- The Sprint 4/5 lock order is custody case, then operators, then evidence.
+- The Sprint 4/5 lock order is `PESSIMISTIC_READ` on the custody case, then `PESSIMISTIC_WRITE` on the evidence row. Operators and memberships are read and re-checked under that order but are never pessimistically locked, because locking an operator row would serialize unrelated cases that happen to share a member.
 
 ### Registration genesis and migration backfill
 

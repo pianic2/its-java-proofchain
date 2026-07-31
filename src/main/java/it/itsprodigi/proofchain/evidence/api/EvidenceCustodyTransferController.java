@@ -61,7 +61,11 @@ public class EvidenceCustodyTransferController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                schema = @Schema(implementation = EvidenceOperationResponse.class))),
+                                schema = @Schema(implementation = EvidenceOperationResponse.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Custody transferred",
+                                                value = OperationalCustodyExamples.TRANSFER_SUCCESS))),
         @ApiResponse(
                 responseCode = "400",
                 description = "Invalid transfer document, unknown property, or invalid reason",
@@ -82,14 +86,22 @@ public class EvidenceCustodyTransferController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class))),
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Visible but forbidden operation",
+                                                value = OperationalCustodyExamples.VISIBLE_FORBIDDEN))),
         @ApiResponse(
                 responseCode = "404",
                 description = "Evidence hidden or not found",
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class))),
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Hidden or missing evidence",
+                                                value = OperationalCustodyExamples.HIDDEN_RESOURCE))),
         @ApiResponse(
                 responseCode = "409",
                 description =
@@ -97,7 +109,15 @@ public class EvidenceCustodyTransferController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class))),
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples = {
+                                    @ExampleObject(
+                                            name = "No-op transfer",
+                                            value = OperationalCustodyExamples.TRANSFER_NO_OP),
+                                    @ExampleObject(
+                                            name = "Ineligible target holder",
+                                            value = OperationalCustodyExamples.TRANSFER_HOLDER_NOT_ELIGIBLE)
+                                })),
         @ApiResponse(
                 responseCode = "500",
                 description = "Custody event persistence failure",
@@ -121,8 +141,7 @@ public class EvidenceCustodyTransferController {
                                             examples =
                                                     @ExampleObject(
                                                             name = "transfer",
-                                                            value =
-                                                                    "{\"newHolderId\":\"b32ecaa9-8c4c-43d7-bdc0-28f9e38f3c37\",\"reason\":\"Handover to the laboratory analyst.\"}")))
+                                                            value = OperationalCustodyExamples.TRANSFER_REQUEST)))
                     @Valid
                     @RequestBody
                     TransferCustodyRequest request,

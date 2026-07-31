@@ -16,7 +16,7 @@ Exactly three custody-event operations are implemented:
 
 `POST /api/v1/cases/{caseId}/evidences` keeps the certified Sprint 3 request and response contract described in [Digital Evidence](./DigitalEvidence.md); Sprint 4 only changes what happens inside its transaction.
 
-Sprint 4 exposes no endpoint for manual event append, event update or deletion, case-level or batch verification, persisted verification history, transfer, metadata update, file-integrity verification, seal, release, search, filtering, export or aggregation.
+Sprint 4 exposes no endpoint for manual event append, event update or deletion, case-level or batch verification, persisted verification history, search, filtering, export or aggregation, and none was added later. Transfer, metadata update, file-integrity verification, seal and release arrived in Sprint 5 as five named operational commands that reuse this slice without extending it; they are documented in [Operational Custody Workflows](./Operational-Custody-Workflows.md).
 
 ## Three different hashes
 
@@ -61,7 +61,7 @@ EVIDENCE_SEALED
 EVIDENCE_RELEASED
 ```
 
-`EVIDENCE_REGISTERED` is the only genesis event: it is always sequence `1` and always carries the zero previous hash. The five remaining types are frozen protocol contracts consumed by the Sprint 5 workflows; the Sprint 4 runtime never produces them, and the read APIs decode them only if such rows exist.
+`EVIDENCE_REGISTERED` is the only genesis event: it is always sequence `1` and always carries the zero previous hash. The five remaining types were frozen protocol contracts with no Sprint 4 producer; each of them is now written by exactly one Sprint 5 operational command, and the protocol itself was not changed to accommodate them.
 
 ### Actor identity and historical role
 
@@ -287,7 +287,7 @@ The append sequence is:
 
 Because the write lock is taken per evidence, concurrent appends to the **same** evidence are serialized and produce a gapless, correctly linked chain, while appends to **different** evidence items proceed in parallel without global serialization. A lock or optimistic failure is translated into `CustodyEventConcurrencyConflictException`; rollback removes the event and restores the previous count and head together.
 
-The lock order shared with Sprint 5 is: custody case, then operators, then evidence. Verification takes only a `PESSIMISTIC_READ` on the evidence row, so it never deadlocks against that order.
+The lock order shared with the Sprint 5 operational commands is custody case first, then evidence: `PESSIMISTIC_READ` on the custody case, then `PESSIMISTIC_WRITE` on the evidence row, then the append. Operators and memberships are read and re-checked under that order but are never pessimistically locked, because locking an operator row would serialize unrelated cases that happen to share a member. The order is recorded in [ADR-006](./adr/ADR-006-sprint-4-custody-events-and-hash-chain.md) and its enforcement in the Sprint 5 command foundation in [ADR-007](./adr/ADR-007-sprint-5-operational-custody-workflows.md). Verification takes only a `PESSIMISTIC_READ` on the evidence row, so it never deadlocks against that order.
 
 ## Registration integration and backfill
 
@@ -439,19 +439,19 @@ Custody-event errors use `application/problem+json` and the shared request insta
 
 There is no post-visibility `403` on these routes: a visible evidence item is fully readable and verifiable by every case member.
 
-Two further problem types belong to the frozen protocol catalogue but are intentionally **not** emitted by the Sprint 4 runtime, and therefore are not published in the OpenAPI document: `custody-event-concurrency-conflict` (`409`) and `custody-event-persistence-failure` (`500`). Sprint 4 has no operational append endpoint, so no request can reach an append conflict; the reasoning and the Sprint 5 obligation are recorded in [ADR-006](./adr/ADR-006-sprint-4-custody-events-and-hash-chain.md).
+Two further problem types belong to the frozen protocol catalogue and were intentionally not emitted by the Sprint 4 runtime, because Sprint 4 has no operational append endpoint and no request could reach an append conflict: `custody-event-concurrency-conflict` (`409`) and `custody-event-persistence-failure` (`500`). The reasoning is recorded in [ADR-006](./adr/ADR-006-sprint-4-custody-events-and-hash-chain.md). Sprint 5 discharged that obligation: both types are now wired, reachable and published on the five operational command routes documented in [Operational Custody Workflows](./Operational-Custody-Workflows.md#problem-details). The three read and verification routes above still cannot emit them.
 
 ## Sprint 5 integration contract
 
-Sprint 5 workflows must reuse this slice instead of extending it:
+The Sprint 5 operational workflows reuse this slice instead of extending it, and every clause of the integration contract was met:
 
-- call `CustodyEventAppender.append` from inside the workflow's own transaction; `MANDATORY` propagation makes the event atomic with the business change;
-- build the frozen typed payload for the operation, without adding fields, event types or payload versions;
-- respect the lock order case → operators → evidence, and keep the evidence `PESSIMISTIC_WRITE` lock as the single writer serialization point;
-- map `CustodyEventConcurrencyConflictException` to `409 custody-event-concurrency-conflict` when the first operational append endpoint is introduced;
-- leave the read and verification contracts unchanged.
+- they call `CustodyEventAppender.append` from inside the workflow's own transaction; `MANDATORY` propagation makes the event atomic with the business change;
+- they build the frozen typed payload for the operation, without adding fields, event types or payload versions;
+- they take the custody case lock before the evidence lock and keep the evidence `PESSIMISTIC_WRITE` lock as the single writer serialization point;
+- they map `CustodyEventConcurrencyConflictException` to `409 custody-event-concurrency-conflict`;
+- the read and verification contracts of this guide are unchanged.
 
-Transfer, metadata update, file-integrity verification, seal and release remain unimplemented in Sprint 4: the payload records exist, the endpoints and the state transitions do not.
+Transfer, metadata update, file-integrity verification, seal and release are documented in [Operational Custody Workflows](./Operational-Custody-Workflows.md).
 
 ## Testing
 
@@ -483,9 +483,9 @@ The primary executable references are [`CustodyEventProtocolTest`](../src/test/j
 
 - The chain proves internal consistency and ordering, not authorship: there is no digital signature, no HMAC key, no timestamping authority and no external anchoring. Anyone able to rewrite the whole database and both anchor columns could rebuild a self-consistent chain. Cryptographic hardening is deliberate future scope.
 - Verification is synchronous and reads the complete chain, so its cost grows linearly with the number of events for one evidence item. There is no incremental, cached or scheduled verification, and no persisted verification history.
-- Verification checks the custody chain only. It does not re-read the stored file and does not recompute `contentSha256`; file integrity is the separate Sprint 5 `INTEGRITY_VERIFIED` workflow.
+- Verification checks the custody chain only. It does not re-read the stored file and does not recompute `contentSha256`; that is the separate [file-integrity verification](./Operational-Custody-Workflows.md#integrity-verification-semantics) command, which records its result as an `INTEGRITY_VERIFIED` event.
 - There is no case-level or batch verification, no export of a signed custody report, and no event search, filtering or aggregation.
 - Backfilled events carry the uploader's migration-time role and are marked `backfilled = true` to keep that provenance explicit.
-- Five of the six payload types are frozen contracts without a Sprint 4 producer; only `EVIDENCE_REGISTERED` is written by the current runtime.
+- All six payload types now have exactly one producer: `EVIDENCE_REGISTERED` is written by registration and the migration backfill, and the other five by the corresponding Sprint 5 operational command.
 
 The architectural decisions behind this slice are recorded in [ADR-006](./adr/ADR-006-sprint-4-custody-events-and-hash-chain.md).

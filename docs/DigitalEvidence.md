@@ -13,7 +13,7 @@ Exactly four evidence operations are implemented:
 | `GET /api/v1/evidences/{evidenceId}` | `200` | Read the complete public metadata of one visible evidence item. |
 | `GET /api/v1/evidences/{evidenceId}/download` | `200` | Stream the complete stored file with attachment headers. |
 
-Sprint 3 does not expose evidence update, transfer, seal, release, delete, or bulk-ingestion endpoints. Sprint 4 later added the read-only custody-event timeline, custody-event detail, and chain-verification routes documented in [Custody Events](./Custody-Events.md); the registration contract above is unchanged.
+Sprint 3 does not expose evidence update, transfer, seal, release, delete, or bulk-ingestion endpoints. Sprint 4 later added the read-only custody-event timeline, custody-event detail, and chain-verification routes documented in [Custody Events](./Custody-Events.md), and Sprint 5 added the five operational custody commands documented in [Operational Custody Workflows](./Operational-Custody-Workflows.md). The four registration and read contracts above are unchanged by both; delete and bulk ingestion remain unimplemented.
 
 ## Domain and persistence model
 
@@ -38,7 +38,7 @@ IN_CUSTODY -> RELEASED
 SEALED -> RELEASED
 ```
 
-Transfer is allowed only before release, `RELEASED` is terminal and clears the holder, and descriptive metadata is immutable after sealing or release. These rules are not HTTP capabilities in Sprint 3.
+Transfer is allowed only before release, `RELEASED` is terminal and clears the holder, and descriptive metadata is immutable after sealing or release. These rules were domain invariants only in Sprint 3; the Sprint 5 commands that exercise them over HTTP are documented in [Operational Custody Workflows](./Operational-Custody-Workflows.md).
 
 [`V3__create_digital_evidence.sql`](../src/main/resources/db/migration/V3__create_digital_evidence.sql) is the schema authority. Named checks enforce normalized text, enum values, holder/status consistency, safe file metadata, lowercase SHA-256 values, timestamps, and non-negative versions. Foreign keys preserve case and operator references. The partial unique index on `(case_id, reference_tag)` is the final duplicate authority, while indexes support case-scoped ordering and common integrity, holder, status, source, and acquisition lookups.
 

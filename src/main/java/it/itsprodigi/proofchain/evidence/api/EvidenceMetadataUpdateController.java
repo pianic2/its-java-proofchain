@@ -66,7 +66,11 @@ public class EvidenceMetadataUpdateController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                schema = @Schema(implementation = EvidenceOperationResponse.class))),
+                                schema = @Schema(implementation = EvidenceOperationResponse.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Descriptive metadata updated",
+                                                value = OperationalCustodyExamples.METADATA_SUCCESS))),
         @ApiResponse(
                 responseCode = "400",
                 description =
@@ -103,7 +107,15 @@ public class EvidenceMetadataUpdateController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class))),
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples = {
+                                    @ExampleObject(
+                                            name = "No-op metadata update",
+                                            value = OperationalCustodyExamples.METADATA_NO_OP),
+                                    @ExampleObject(
+                                            name = "Sealed or released evidence",
+                                            value = OperationalCustodyExamples.METADATA_NOT_IN_CUSTODY)
+                                })),
         @ApiResponse(
                 responseCode = "500",
                 description = "Custody event persistence failure",
@@ -124,11 +136,16 @@ public class EvidenceMetadataUpdateController {
                                     @Content(
                                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                                             schema = @Schema(implementation = PatchEvidenceMetadataRequest.class),
-                                            examples =
-                                                    @ExampleObject(
-                                                            name = "metadata",
-                                                            value =
-                                                                    "{\"acquisitionToolVersion\":\"3.1.4\",\"acquisitionNotes\":null,\"reason\":\"Corrected the acquisition tool version after the laboratory review.\"}")))
+                                            examples = {
+                                                @ExampleObject(
+                                                        name = "metadata",
+                                                        value = OperationalCustodyExamples.METADATA_REQUEST_SIMPLE),
+                                                @ExampleObject(
+                                                        name = "absent, explicit null and blank",
+                                                        description =
+                                                                "title is absent and preserved, description is an explicit null and cleared, acquisitionNotes is blank and normalized to null, and acquisitionToolVersion is trimmed.",
+                                                        value = OperationalCustodyExamples.METADATA_REQUEST_PRESENCE)
+                                            }))
                     @RequestBody
                     PatchEvidenceMetadataRequest request,
             @AuthenticationPrincipal AuthenticatedOperator actor) {

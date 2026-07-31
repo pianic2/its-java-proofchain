@@ -72,7 +72,11 @@ public class EvidenceLifecycleController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                schema = @Schema(implementation = EvidenceOperationResponse.class))),
+                                schema = @Schema(implementation = EvidenceOperationResponse.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Evidence sealed",
+                                                value = OperationalCustodyExamples.SEAL_SUCCESS))),
         @ApiResponse(
                 responseCode = "400",
                 description = "Invalid seal document, unknown property, or invalid reason",
@@ -108,7 +112,11 @@ public class EvidenceLifecycleController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class))),
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Current holder no longer eligible",
+                                                value = OperationalCustodyExamples.SEAL_HOLDER_NOT_ELIGIBLE))),
         @ApiResponse(
                 responseCode = "500",
                 description = "Custody event persistence failure",
@@ -131,8 +139,7 @@ public class EvidenceLifecycleController {
                                             examples =
                                                     @ExampleObject(
                                                             name = "seal",
-                                                            value =
-                                                                    "{\"reason\":\"Analysis completed; the working copy is sealed for preservation.\"}")))
+                                                            value = OperationalCustodyExamples.SEAL_REQUEST)))
                     @Valid
                     @RequestBody
                     SealEvidenceRequest request,
@@ -163,7 +170,15 @@ public class EvidenceLifecycleController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                schema = @Schema(implementation = EvidenceOperationResponse.class))),
+                                schema = @Schema(implementation = EvidenceOperationResponse.class),
+                                examples = {
+                                    @ExampleObject(
+                                            name = "Released from IN_CUSTODY",
+                                            value = OperationalCustodyExamples.RELEASE_FROM_IN_CUSTODY),
+                                    @ExampleObject(
+                                            name = "Released from SEALED",
+                                            value = OperationalCustodyExamples.RELEASE_FROM_SEALED)
+                                })),
         @ApiResponse(
                 responseCode = "400",
                 description = "Invalid release document, unknown property, or invalid reason",
@@ -198,7 +213,15 @@ public class EvidenceLifecycleController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class))),
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples = {
+                                    @ExampleObject(
+                                            name = "Already released, terminal",
+                                            value = OperationalCustodyExamples.RELEASE_TERMINAL),
+                                    @ExampleObject(
+                                            name = "Closed custody case",
+                                            value = OperationalCustodyExamples.CASE_CLOSED)
+                                })),
         @ApiResponse(
                 responseCode = "500",
                 description = "Custody event persistence failure",
@@ -221,8 +244,7 @@ public class EvidenceLifecycleController {
                                             examples =
                                                     @ExampleObject(
                                                             name = "release",
-                                                            value =
-                                                                    "{\"reason\":\"Proceedings closed; custody of the evidence is terminated.\"}")))
+                                                            value = OperationalCustodyExamples.RELEASE_REQUEST)))
                     @Valid
                     @RequestBody
                     ReleaseEvidenceRequest request,

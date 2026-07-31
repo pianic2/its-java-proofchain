@@ -6,7 +6,7 @@ ProofChain is a time-bounded ITS project implemented as a Spring Boot modular mo
 
 ## MVP boundaries
 
-The current Sprint 4 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization, ADMIN-protected operator management, custody case lifecycle, contextual case membership, four digital-evidence operations (register, list, inspect, and download), and an append-only custody-event hash chain with two read operations and on-demand chain verification. Content is stored on the local filesystem and bound to persisted metadata by reproducible SHA-256 values, while every evidence item owns an independent, hash-linked custody chain that starts with its registration event. Evidence mutation endpoints (transfer, metadata update, file-integrity verification, sealing, and release), background reconciliation, and production storage operations remain outside the implemented scope.
+The current Sprint 5 slice provides username/password login, stateless JWT authentication, database-authoritative operator authorization, ADMIN-protected operator management, custody case lifecycle, contextual case membership, four digital-evidence operations (register, list, inspect, and download), an append-only custody-event hash chain with two read operations and on-demand chain verification, and five operational custody commands (transfer, descriptive metadata update, file-integrity verification, sealing, and release). Content is stored on the local filesystem and bound to persisted metadata by reproducible SHA-256 values, while every evidence item owns an independent, hash-linked custody chain that starts with its registration event and grows by exactly one event per operational command. Generic command or event-append endpoints, bulk and asynchronous operations, custody restoration, file repair, background reconciliation, and production storage operations remain outside the implemented scope.
 
 ## Technology stack
 
@@ -78,6 +78,8 @@ Digital evidence is registered with `POST /api/v1/cases/{caseId}/evidences`, lis
 
 The immutable custody-event timeline is read with `GET /api/v1/evidences/{evidenceId}/events`, one event is inspected with `GET /api/v1/evidences/{evidenceId}/events/{eventId}`, and the complete chain of one evidence item is verified with `POST /api/v1/evidences/{evidenceId}/verify-chain`. Events are never created, updated, or deleted through the API. See [Custody Events](./docs/Custody-Events.md) for the event model, canonical hashing protocol, reproducible fixed vector, verification semantics, and limits.
 
+Operational custody commands are exactly five: `POST /api/v1/evidences/{evidenceId}/transfer`, `PATCH /api/v1/evidences/{evidenceId}/metadata`, `POST /api/v1/evidences/{evidenceId}/verify-integrity`, `POST /api/v1/evidences/{evidenceId}/seal`, and `POST /api/v1/evidences/{evidenceId}/release`. Each appends exactly one custody event in the same transaction and returns `Location` for it. See [Operational Custody Workflows](./docs/Operational-Custody-Workflows.md) for the authorization matrix, lifecycle graph, request and response contracts, locking and concurrency behavior, and Problem Details.
+
 ## Tests and quality gate
 
 The canonical verification command is:
@@ -119,6 +121,7 @@ Start with the [technical documentation home](./docs/README.md), then follow the
 - [Custody Cases](./docs/CustodyCases.md) — case lifecycle, contextual membership, REST contracts, persistence, and concurrency.
 - [Digital Evidence](./docs/DigitalEvidence.md) — domain metadata, registration, integrity hashes, filesystem storage, read APIs, and failure contracts.
 - [Custody Events](./docs/Custody-Events.md) — custody-event model, typed payloads, canonical hash chain, timeline and detail APIs, and chain verification.
+- [Operational Custody Workflows](./docs/Operational-Custody-Workflows.md) — transfer, metadata update, file-integrity verification, sealing, release, authorization matrix, lifecycle graph, locking, and concurrency.
 - [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
 - [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
 - [MIT license](./LICENSE) — project licensing terms.

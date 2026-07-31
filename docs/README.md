@@ -4,7 +4,7 @@
 
 ProofChain is the backend of a system for managing the chain of custody of digital evidence. The application is delivered as a Spring Boot modular monolith: one deployable runtime contains feature-oriented packages with explicit boundaries between HTTP contracts, application services, domain state, persistence, and security.
 
-This documentation describes the code that is present in the repository. The current implementation covers project infrastructure, authentication, operator management, custody case lifecycle, contextual case membership, the Sprint 3 digital-evidence registration and read slice, and the Sprint 4 custody-event hash chain with its read and verification APIs. Evidence mutation workflows — transfer, metadata update, file-integrity verification, sealing, and release — remain reserved for later sprints and are not presented as available features.
+This documentation describes the code that is present in the repository. The current implementation covers project infrastructure, authentication, operator management, custody case lifecycle, contextual case membership, the Sprint 3 digital-evidence registration and read slice, the Sprint 4 custody-event hash chain with its read and verification APIs, and the Sprint 5 operational custody workflows — transfer, descriptive metadata update, file-integrity verification, sealing, and release.
 
 ## How to read this documentation
 
@@ -16,8 +16,9 @@ The recommended path is:
 4. Read [Custody Cases](./CustodyCases.md) for case metadata, lifecycle, membership, contextual authorization, and concurrency protection.
 5. Read [Digital Evidence](./DigitalEvidence.md) for typed metadata, registration, integrity hashes, filesystem storage, and read/download behavior.
 6. Read [Custody Events](./Custody-Events.md) for the custody-event model, canonical hashing protocol, append-only chain, timeline and detail APIs, and chain verification.
-7. Consult the [ADR index](./adr/README.md) for the decisions behind the implemented architecture.
-8. Use the test links in each feature guide as the current executable testing reference. A separate testing guide has not been added yet.
+7. Read [Operational Custody Workflows](./Operational-Custody-Workflows.md) for transfer, metadata update, file-integrity verification, sealing, release, the authorization matrix, the lifecycle graph, and the locking and concurrency contract.
+8. Consult the [ADR index](./adr/README.md) for the decisions behind the implemented architecture.
+9. Use the test links in each feature guide as the current executable testing reference. A separate testing guide has not been added yet.
 
 ## Documentation index
 
@@ -26,14 +27,15 @@ The recommended path is:
 - [Custody Cases](./CustodyCases.md) — case metadata, lifecycle, contextual membership, REST contracts, persistence, and concurrency.
 - [Digital Evidence](./DigitalEvidence.md) — evidence domain, multipart registration, hashes, filesystem storage, paging, download, and operational limits.
 - [Custody Events](./Custody-Events.md) — event model, typed payloads, canonical JSON and hash chain, reproducible fixed vector, timeline and detail APIs, and chain verification.
-- [Architecture Decision Records](./adr/README.md) — accepted project, Sprint 1, Sprint 2, Sprint 3, and Sprint 4 architectural decisions.
+- [Operational Custody Workflows](./Operational-Custody-Workflows.md) — transfer, metadata update, file-integrity verification, sealing, release, authorization matrix, lifecycle graph, locking, concurrency, and Problem Details.
+- [Architecture Decision Records](./adr/README.md) — accepted project, Sprint 1, Sprint 2, Sprint 3, Sprint 4, and Sprint 5 architectural decisions.
 - [Database migrations](../src/main/resources/db/migration/README.md) — rules for Flyway-managed schema evolution.
 - [Project README](../README.md) — prerequisites, local startup, public API entry points, and the canonical Maven command.
 - [Contributing to ProofChain](../CONTRIBUTING.md) — branch, commit, review, quality, and evidence conventions.
 
 ## Codebase overview
 
-The Java source tree is organized feature-first. `auth` owns credential verification, token handling, the authenticated principal, and authentication event logging. `operator` owns the operator aggregate, administrative use cases, and PostgreSQL access. `custodycase` owns case metadata, lifecycle, membership, contextual access, and its PostgreSQL mappings. `evidence` owns typed evidence metadata, PostgreSQL persistence, registration and query use cases, integrity hashes, and the filesystem adapter. `custodyevent` owns the custody-event domain, the canonical hashing protocol, the single append-only writer, the timeline and detail read APIs, and chain verification. `common` contains cross-cutting Spring Security, OpenAPI, password configuration, and Problem Details support.
+The Java source tree is organized feature-first. `auth` owns credential verification, token handling, the authenticated principal, and authentication event logging. `operator` owns the operator aggregate, administrative use cases, and PostgreSQL access. `custodycase` owns case metadata, lifecycle, membership, contextual access, and its PostgreSQL mappings. `evidence` owns typed evidence metadata, PostgreSQL persistence, registration and query use cases, the five operational custody commands and their shared locking and authorization foundation, integrity hashes, and the filesystem adapter. `custodyevent` owns the custody-event domain, the canonical hashing protocol, the single append-only writer, the timeline and detail read APIs, and chain verification. `common` contains cross-cutting Spring Security, OpenAPI, password configuration, and Problem Details support.
 
 Within an implemented feature, API records define input and output instead of exposing persistence entities. Application services define use cases and transactional boundaries. The operator domain enforces canonical identity and aggregate state, while Spring Data JPA repositories persist it in PostgreSQL. Spring Security combines a stateless servlet filter chain with method authorization. JWTs carry a signed operator identifier, but each authenticated request reloads current authorization state from the database.
 
@@ -50,6 +52,7 @@ Flyway is the schema authority; Hibernate validates rather than creates the sche
 │   ├── CustodyCases.md           # custody-case and membership guide
 │   ├── DigitalEvidence.md        # evidence registration, storage, and read guide
 │   ├── Custody-Events.md         # custody-event chain, protocol, and verification guide
+│   ├── Operational-Custody-Workflows.md  # Sprint 5 transfer, metadata, integrity, seal, release guide
 │   └── adr/                      # accepted architecture decisions
 ├── src/main/java/it/itsprodigi/proofchain/
 │   ├── auth/                     # login, JWT, request authentication, audit events
@@ -78,6 +81,7 @@ Flyway is the schema authority; Hibernate validates rather than creates the sche
 - **Contextual case access.** ADMIN operators see every case; other roles see only their memberships, and inaccessible identifiers are hidden as not found.
 - **Evidence integrity and storage boundary.** Content and contextual SHA-256 values bind immutable file metadata to a case and evidence identifier; filesystem paths remain internal to a hardened storage adapter.
 - **Append-only custody history.** Custody events are written only by one server-side appender inside the business transaction they record, are hash-linked per evidence item, and are protected against update or deletion by the database, the persistence layer, and the API surface.
+- **Named operational commands.** Evidence is changed only through the five explicit Sprint 5 commands, each appending exactly one custody event under the frozen `PESSIMISTIC_READ` case then `PESSIMISTIC_WRITE` evidence lock order, with one shared server instant and no silent retry.
 - **Stateless JWT authentication.** The server does not create an HTTP session or persist a Spring Security context between requests.
 - **Flyway-managed schema.** Versioned SQL changes the schema and Hibernate uses `ddl-auto: validate`.
 - **Problem Details.** MVC and security boundaries return stable problem types rather than ad hoc error bodies.

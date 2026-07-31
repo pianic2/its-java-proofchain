@@ -112,7 +112,11 @@ public class EvidenceIntegrityVerificationController {
                 content =
                         @Content(
                                 mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                                schema = @Schema(implementation = ProblemDetail.class)))
+                                schema = @Schema(implementation = ProblemDetail.class),
+                                examples =
+                                        @ExampleObject(
+                                                name = "Stored file technically unreadable",
+                                                value = OperationalCustodyExamples.FILE_UNAVAILABLE)))
     })
     public ResponseEntity<IntegrityVerificationResponse> verifyIntegrity(
             @Parameter(description = "Digital evidence identifier", example = "6f674949-c508-49bf-a160-ef720f9b51ee")
