@@ -259,6 +259,59 @@ class DigitalEvidenceRepositoryIT extends PostgreSqlIntegrationTest {
         assertDatabaseRejects("UPDATE digital_evidence SET version = -1 WHERE id = ?", evidenceId);
     }
 
+    /**
+     * The lifecycle graph is enforced by the database itself, not only by the aggregate and the application services:
+     * only IN_CUSTODY -&gt; SEALED, IN_CUSTODY -&gt; RELEASED and SEALED -&gt; RELEASED are accepted, RELEASED is
+     * terminal, and the status/holder check makes it impossible to give released evidence a holder again.
+     */
+    @Test
+    void databaseEnforcesTheExactEvidenceLifecycleGraphAndTerminalReleasedState() {
+        EvidenceContext context = saveEvidence("lifecycle", "LIFECYCLE-01");
+        UUID evidenceId = context.evidence().getId();
+        UUID holderId = context.holder().getId();
+
+        assertThat(jdbcTemplate.update("UPDATE digital_evidence SET status = 'SEALED' WHERE id = ?", evidenceId))
+                .isOne();
+        assertDatabaseRejects("UPDATE digital_evidence SET status = 'IN_CUSTODY' WHERE id = ?", evidenceId);
+        assertThat(jdbcTemplate.update("""
+                        UPDATE digital_evidence
+                        SET status = 'RELEASED', current_holder_operator_id = NULL
+                        WHERE id = ?
+                        """, evidenceId)).isOne();
+
+        for (String terminalBreach : new String[] {"IN_CUSTODY", "SEALED"}) {
+            assertDatabaseRejects(
+                    "UPDATE digital_evidence SET status = ?, current_holder_operator_id = ? WHERE id = ?",
+                    terminalBreach,
+                    holderId,
+                    evidenceId);
+        }
+        assertDatabaseRejects(
+                "UPDATE digital_evidence SET current_holder_operator_id = ? WHERE id = ?", holderId, evidenceId);
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM digital_evidence WHERE id = ?", String.class, evidenceId))
+                .isEqualTo("RELEASED");
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT current_holder_operator_id FROM digital_evidence WHERE id = ?", UUID.class, evidenceId))
+                .isNull();
+    }
+
+    /** IN_CUSTODY may go straight to RELEASED without ever being sealed. */
+    @Test
+    void databaseAcceptsTheDirectInCustodyToReleasedEdge() {
+        UUID evidenceId =
+                saveEvidence("direct-release", "LIFECYCLE-02").evidence().getId();
+
+        assertThat(jdbcTemplate.update("""
+                        UPDATE digital_evidence
+                        SET status = 'RELEASED', current_holder_operator_id = NULL
+                        WHERE id = ?
+                        """, evidenceId)).isOne();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM digital_evidence WHERE id = ?", String.class, evidenceId))
+                .isEqualTo("RELEASED");
+    }
+
     @Test
     void referenceTagIsUniqueWithinOneCaseButReusableAcrossCasesAndQueriesNormalizeIt() {
         EvidenceContext first = saveEvidence("unique", "  tag-01  ");

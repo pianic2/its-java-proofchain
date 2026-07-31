@@ -118,7 +118,7 @@ class CustodyEventBackfillMigrationIT extends PostgreSqlIntegrationTest {
         assertThat(first.eventId().version()).isEqualTo(4);
         assertThat(v6HistoryCount()).isOne();
 
-        removeV6HistoryOnly();
+        removeTrailingMigrationHistory();
         fullFlyway().migrate();
 
         assertThat(storedBackfill()).isEqualTo(first);
@@ -386,8 +386,15 @@ class CustodyEventBackfillMigrationIT extends PostgreSqlIntegrationTest {
         }
     }
 
-    private void removeV6HistoryOnly() throws SQLException {
-        executeUpdate("DELETE FROM flyway_schema_history WHERE version = '6'", null, null);
+    /**
+     * Drops the history of the backfill and of every migration applied after it, so a full {@code migrate()} replays
+     * them. Flyway would otherwise refuse to re-run V6 while a later version is still recorded as applied.
+     */
+    private void removeTrailingMigrationHistory() throws SQLException {
+        executeUpdate("""
+                DELETE FROM flyway_schema_history
+                WHERE version IS NOT NULL AND version ~ '^[0-9]+$' AND CAST(version AS integer) >= 6
+                """, null, null);
     }
 
     private void executeUpdate(String sql, Object first, Object second) throws SQLException {
