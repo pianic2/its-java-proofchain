@@ -35,7 +35,12 @@ public class EvidenceCommandResponseMapper {
 
     public URI location(EvidenceOperationResponse response) {
         Objects.requireNonNull(response, "response must not be null");
-        CustodyEventSummaryResponse summary = response.eventSummary();
+        return location(response.eventSummary());
+    }
+
+    /** Canonical event location for workflows that answer with a specialized body instead of the shared one. */
+    public URI location(CustodyEventSummaryResponse summary) {
+        Objects.requireNonNull(summary, "summary must not be null");
         return URI.create(EVENT_LOCATION_TEMPLATE.formatted(summary.evidenceId(), summary.id()));
     }
 

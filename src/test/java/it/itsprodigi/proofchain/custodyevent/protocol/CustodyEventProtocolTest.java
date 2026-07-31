@@ -302,6 +302,9 @@ class CustodyEventProtocolTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(new IntegrityVerifiedPayload("SHA-256", C_HASH, D_HASH, false, 1).valid())
                 .isFalse();
+        assertThat(new IntegrityVerifiedPayload("SHA-256", C_HASH, C_HASH, false, 1).valid())
+                .as("equal digests with a contradicting observed byte count are still a non-conforming result")
+                .isFalse();
 
         assertThatThrownBy(() -> new EvidenceSealedPayload(
                         EvidenceStatus.SEALED, EvidenceStatus.SEALED, PREVIOUS_HOLDER_ID, "Seal"))

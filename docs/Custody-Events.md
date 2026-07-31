@@ -157,7 +157,7 @@ API responses render payloads with the record component order shown below, and r
 }
 ```
 
-`INTEGRITY_VERIFIED` — a file re-hash result; `algorithm` is fixed to `SHA-256` and `valid` must agree with the compared hashes:
+`INTEGRITY_VERIFIED` — a file re-hash result; `algorithm` is fixed to `SHA-256`, `fileSize` is the number of bytes actually observed during the verification, and `valid` is the conjunction of digest equality and observed-size equality. `valid` may therefore only be `true` when the two hashes are identical, while `false` also covers identical hashes contradicted by the observed byte count:
 
 ```json
 {
