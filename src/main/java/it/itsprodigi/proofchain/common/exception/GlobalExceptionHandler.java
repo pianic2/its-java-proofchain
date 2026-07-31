@@ -15,6 +15,7 @@ import it.itsprodigi.proofchain.custodyevent.application.CustodyChainReadFailure
 import it.itsprodigi.proofchain.custodyevent.application.CustodyEventConcurrencyConflictException;
 import it.itsprodigi.proofchain.custodyevent.application.CustodyEventPersistenceFailureException;
 import it.itsprodigi.proofchain.custodyevent.application.EventNotFoundException;
+import it.itsprodigi.proofchain.evidence.application.CustodyTransferNoOpException;
 import it.itsprodigi.proofchain.evidence.application.DuplicateEvidenceReferenceTagException;
 import it.itsprodigi.proofchain.evidence.application.EmptyEvidenceException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceFileUnavailableException;
@@ -191,6 +192,16 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 ProblemTypes.HOLDER_NOT_ELIGIBLE,
                 "Evidence holder not eligible",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(CustodyTransferNoOpException.class)
+    ProblemDetail handleCustodyTransferNoOp(CustodyTransferNoOpException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CUSTODY_TRANSFER_NO_OP,
+                "Custody transfer no-op",
                 exception.getMessage(),
                 request);
     }
