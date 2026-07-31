@@ -42,14 +42,28 @@ public class CustodyEventAppender {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public CustodyEventAppendResult append(UUID evidenceId, Operator actor, CustodyEventPayload payload) {
+        return append(evidenceId, actor, payload, nowAtMicrosecondPrecision());
+    }
+
+    /**
+     * Appends using a caller-supplied command instant so that one server instant can be shared by the aggregate and the
+     * custody event of a single operational command.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public CustodyEventAppendResult append(
+            UUID evidenceId, Operator actor, CustodyEventPayload payload, Instant occurredAt) {
         Objects.requireNonNull(evidenceId, "evidenceId must not be null");
         Objects.requireNonNull(actor, "actor must not be null");
         Objects.requireNonNull(payload, "payload must not be null");
+        Objects.requireNonNull(occurredAt, "occurredAt must not be null");
+        if (!occurredAt.equals(occurredAt.truncatedTo(ChronoUnit.MICROS))) {
+            throw new IllegalArgumentException("occurredAt must have microsecond precision");
+        }
         try {
             DigitalEvidence evidence = evidences
                     .findByIdForCustodyEventAppend(evidenceId)
                     .orElseThrow(() -> new IllegalArgumentException("evidence does not exist"));
-            return appendManaged(evidence, actor, payload, nowAtMicrosecondPrecision());
+            return appendManaged(evidence, actor, payload, occurredAt);
         } catch (PessimisticLockingFailureException | OptimisticLockingFailureException exception) {
             throw new CustodyEventConcurrencyConflictException(exception);
         }
@@ -98,7 +112,15 @@ public class CustodyEventAppender {
                 CustodyEventFactory.create(canonicalEvent, evidence.getCustodyCase(), evidence, actor, eventHash);
         events.saveAndFlush(event);
         evidence.advanceCustodyChain(sequenceNumber, eventHash);
-        return new CustodyEventAppendResult(eventId, sequenceNumber, payload.eventType(), occurredAt, eventHash);
+        return new CustodyEventAppendResult(
+                eventId,
+                sequenceNumber,
+                payload.eventType(),
+                occurredAt,
+                previousHash,
+                eventHash,
+                CanonicalCustodyEvent.PAYLOAD_VERSION,
+                CustodyEventHashing.HASH_VERSION);
     }
 
     private Instant nowAtMicrosecondPrecision() {

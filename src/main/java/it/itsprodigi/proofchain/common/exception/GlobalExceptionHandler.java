@@ -12,6 +12,8 @@ import it.itsprodigi.proofchain.custodycase.application.InvalidCaseStatusTransit
 import it.itsprodigi.proofchain.custodycase.application.LastCaseManagerRemovalException;
 import it.itsprodigi.proofchain.custodycase.application.OperatorNotActiveException;
 import it.itsprodigi.proofchain.custodyevent.application.CustodyChainReadFailureException;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyEventConcurrencyConflictException;
+import it.itsprodigi.proofchain.custodyevent.application.CustodyEventPersistenceFailureException;
 import it.itsprodigi.proofchain.custodyevent.application.EventNotFoundException;
 import it.itsprodigi.proofchain.evidence.application.DuplicateEvidenceReferenceTagException;
 import it.itsprodigi.proofchain.evidence.application.EmptyEvidenceException;
@@ -20,6 +22,7 @@ import it.itsprodigi.proofchain.evidence.application.EvidenceHolderNotEligibleEx
 import it.itsprodigi.proofchain.evidence.application.EvidenceRequestValidationException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceStorageException;
 import it.itsprodigi.proofchain.evidence.application.EvidenceTooLargeException;
+import it.itsprodigi.proofchain.evidence.application.InvalidEvidenceStateException;
 import it.itsprodigi.proofchain.operator.application.ConcurrentOperatorModificationException;
 import it.itsprodigi.proofchain.operator.application.DuplicateOperatorException;
 import it.itsprodigi.proofchain.operator.application.OperatorInvariantException;
@@ -240,6 +243,38 @@ public class GlobalExceptionHandler {
                 ProblemTypes.EVENT_NOT_FOUND,
                 "Custody event not found",
                 exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(InvalidEvidenceStateException.class)
+    ProblemDetail handleInvalidEvidenceState(InvalidEvidenceStateException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.INVALID_EVIDENCE_STATE,
+                "Invalid evidence state",
+                exception.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(CustodyEventConcurrencyConflictException.class)
+    ProblemDetail handleCustodyEventConcurrencyConflict(
+            CustodyEventConcurrencyConflictException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.CONFLICT,
+                ProblemTypes.CUSTODY_EVENT_CONCURRENCY_CONFLICT,
+                "Custody event concurrency conflict",
+                "The evidence was modified by another transaction. Retry using current data.",
+                request);
+    }
+
+    @ExceptionHandler(CustodyEventPersistenceFailureException.class)
+    ProblemDetail handleCustodyEventPersistenceFailure(
+            CustodyEventPersistenceFailureException exception, HttpServletRequest request) {
+        return problemDetailFactory.create(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.CUSTODY_EVENT_PERSISTENCE_FAILURE,
+                "Custody event persistence failure",
+                "The custody event could not be persisted.",
                 request);
     }
 

@@ -35,6 +35,22 @@ public class CaseAccessService {
         return custodyCases.findByIdWithCreatedBy(caseId).orElseThrow(ResourceNotFoundException::new);
     }
 
+    /**
+     * Visibility check that never loads the custody case aggregate, so a caller can safely acquire the case lock
+     * afterwards and observe the state committed at lock acquisition time.
+     */
+    @Transactional(readOnly = true)
+    public void requireVisibleCase(UUID caseId, AuthenticatedOperator actor) {
+        Objects.requireNonNull(caseId, "caseId must not be null");
+        Objects.requireNonNull(actor, "actor must not be null");
+        if (actor.role() != OperatorRole.ADMIN && !memberships.existsByCustodyCaseIdAndOperatorId(caseId, actor.id())) {
+            throw new ResourceNotFoundException();
+        }
+        if (!custodyCases.existsById(caseId)) {
+            throw new ResourceNotFoundException();
+        }
+    }
+
     @Transactional(readOnly = true)
     public Page<CustodyCase> findAccessibleCases(Pageable pageable, AuthenticatedOperator actor) {
         Objects.requireNonNull(pageable, "pageable must not be null");

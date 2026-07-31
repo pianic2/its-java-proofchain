@@ -36,6 +36,15 @@ public final class ProblemTypes {
     public static final URI EVIDENCE_FILE_UNAVAILABLE =
             URI.create("https://proofchain.dev/problems/evidence-file-unavailable");
     public static final URI EVENT_NOT_FOUND = URI.create("https://proofchain.dev/problems/event-not-found");
+    public static final URI INVALID_EVIDENCE_STATE =
+            URI.create("https://proofchain.dev/problems/invalid-evidence-state");
+    public static final URI CUSTODY_TRANSFER_NO_OP =
+            URI.create("https://proofchain.dev/problems/custody-transfer-no-op");
+    public static final URI METADATA_UPDATE_NO_OP = URI.create("https://proofchain.dev/problems/metadata-update-no-op");
+    public static final URI CUSTODY_EVENT_CONCURRENCY_CONFLICT =
+            URI.create("https://proofchain.dev/problems/custody-event-concurrency-conflict");
+    public static final URI CUSTODY_EVENT_PERSISTENCE_FAILURE =
+            URI.create("https://proofchain.dev/problems/custody-event-persistence-failure");
     public static final URI CUSTODY_CHAIN_READ_FAILURE =
             URI.create("https://proofchain.dev/problems/custody-chain-read-failure");
 

@@ -25,6 +25,20 @@ public interface DigitalEvidenceRepository extends JpaRepository<DigitalEvidence
     @Query("SELECT evidence FROM DigitalEvidence evidence WHERE evidence.id = :evidenceId")
     Optional<DigitalEvidence> findByIdForChainVerification(@Param("evidenceId") UUID evidenceId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT evidence
+            FROM DigitalEvidence evidence
+            WHERE evidence.id = :evidenceId
+              AND evidence.custodyCase.id = :caseId
+            """)
+    Optional<DigitalEvidence> findByIdAndCaseIdForCommand(
+            @Param("evidenceId") UUID evidenceId, @Param("caseId") UUID caseId);
+
+    @Transactional(readOnly = true)
+    @Query("SELECT evidence.custodyCase.id FROM DigitalEvidence evidence WHERE evidence.id = :evidenceId")
+    Optional<UUID> findCaseIdById(@Param("evidenceId") UUID evidenceId);
+
     default boolean existsByCaseIdAndReferenceTag(UUID caseId, String referenceTag) {
         Objects.requireNonNull(caseId, "caseId must not be null");
         String normalizedReferenceTag = DigitalEvidenceNormalizer.normalizeReferenceTag(referenceTag);

@@ -485,6 +485,21 @@ public class DigitalEvidence {
         touch();
     }
 
+    /**
+     * Stamps the aggregate with the single server instant generated for one operational custody command, so that
+     * {@code updatedAt} and the appended {@code CustodyEvent.occurredAt} always share the same value.
+     */
+    public void stampCommandInstant(Instant commandInstant) {
+        Instant value = Objects.requireNonNull(commandInstant, "commandInstant must not be null");
+        if (!value.equals(value.truncatedTo(ChronoUnit.MICROS))) {
+            throw new IllegalArgumentException("commandInstant must have microsecond precision");
+        }
+        if (value.isBefore(createdAt)) {
+            throw new IllegalArgumentException("commandInstant must not precede createdAt");
+        }
+        updatedAt = value;
+    }
+
     public UUID getId() {
         return id;
     }

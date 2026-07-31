@@ -86,6 +86,47 @@ class GlobalExceptionHandlerWebMvcTest {
     }
 
     @Test
+    void mapsInvalidEvidenceStateToAStableConflict() throws Exception {
+        mockMvc.perform(post("/api/test/evidence-state"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("https://proofchain.dev/problems/invalid-evidence-state"))
+                .andExpect(jsonPath("$.title").value("Invalid evidence state"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value("Released evidence is terminal and cannot be modified."));
+    }
+
+    @Test
+    void mapsCustodyEventConcurrencyConflictWithoutLeakingPersistenceDetail() throws Exception {
+        mockMvc.perform(post("/api/test/custody-event-conflict"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+                .andExpect(
+                        jsonPath("$.type").value("https://proofchain.dev/problems/custody-event-concurrency-conflict"))
+                .andExpect(jsonPath("$.title").value("Custody event concurrency conflict"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail")
+                        .value("The evidence was modified by another transaction. Retry using current data."))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("40P01"))))
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("deadlock detected"))));
+    }
+
+    @Test
+    void mapsCustodyEventPersistenceFailureWithoutLeakingStorageDetail() throws Exception {
+        mockMvc.perform(post("/api/test/custody-event-persistence"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+                .andExpect(
+                        jsonPath("$.type").value("https://proofchain.dev/problems/custody-event-persistence-failure"))
+                .andExpect(jsonPath("$.title").value("Custody event persistence failure"))
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.detail").value("The custody event could not be persisted."))
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("content.bin"))));
+    }
+
+    @Test
     void returnsValidationErrorForAnInvalidSize() throws Exception {
         mockMvc.perform(post("/api/test/validation")
                         .contentType(APPLICATION_JSON)
