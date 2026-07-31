@@ -135,6 +135,7 @@ reports and known skips, and [Troubleshooting](./docs/Troubleshooting.md) when t
 - **Health probes:** `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness` — status only, no
   component detail
 - **Postman:** ready-to-run collection and placeholder-only environment in [postman/](./postman/README.md)
+- **Demo:** deterministic, synthetic-data-only walkthrough in the [demo guide](./docs/Demo-Guide.md)
 
 The runtime-generated document is the single API specification; no static specification file exists that could diverge
 from it. `ApiSurfaceContractIT` reconciles the live Spring request mappings, the generated document, the Problem
@@ -166,6 +167,11 @@ src/main/java/it/itsprodigi/proofchain/
 └── common/               # security wiring, OpenAPI, CORS, Problem Details
 ```
 
+Demonstration assets live outside the Java tree: [`scripts/demo/`](./scripts/demo/demo-preflight.sh) holds the safe
+preflight, the explicitly destructive reset and the Postman/Newman smoke wrapper, and
+[`presentation/ProofChain.md`](./presentation/ProofChain.md) is the deck source. None of them is referenced by
+`pom.xml` or by any workflow.
+
 Migrations live in `src/main/resources/db/migration` and are the official SQL creation scripts of the delivery; their
 rules are in the [migration guide](./src/main/resources/db/migration/README.md) and their certified lifecycle in the
 [schema lifecycle guide](./docs/Database-Schema-Lifecycle.md). Tests mirror the application packages; integration tests
@@ -186,6 +192,11 @@ Start at the [documentation home](./docs/README.md). The reviewer path is:
   [Custody Cases](./docs/CustodyCases.md), [Digital Evidence](./docs/DigitalEvidence.md),
   [Custody Events](./docs/Custody-Events.md),
   [Operational Custody Workflows](./docs/Operational-Custody-Workflows.md).
+- [Demo guide](./docs/Demo-Guide.md) — the authoritative 12–15 minute demonstration procedure, its human-gated
+  tampering scenarios and the destructive reset; [reviewer checklist](./docs/Reviewer-Checklist.md) — the 20–30 minute
+  self-service assessment path.
+- [Presentation source](./presentation/ProofChain.md) — 12-slide Markdown/Mermaid deck. The Java build has no
+  presentation dependency and no exported deck is tracked.
 - [ADR index](./docs/adr/README.md), [CHANGELOG](./CHANGELOG.md), [CONTRIBUTING](./CONTRIBUTING.md).
 
 ## Release

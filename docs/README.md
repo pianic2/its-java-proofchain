@@ -18,9 +18,11 @@ If you are assessing this delivery, read in this order:
 5. [Testing](./Testing.md) — how to reproduce the quality gate and what the numbers mean.
 6. [Operations](./Operations.md) and [Troubleshooting](./Troubleshooting.md) — running the stack and fixing it.
 7. [Postman package](../postman/README.md) — exercise the API end to end.
-8. Feature guides, for the exact contract of any area you want to inspect closely.
-9. [ADR index](./adr/README.md) and [CHANGELOG](../CHANGELOG.md) — why the architecture is what it is, and what
-   changed.
+8. [Reviewer checklist](./Reviewer-Checklist.md) — the 20–30 minute self-service assessment path, or the
+   [demo guide](./Demo-Guide.md) if you want the full guided walkthrough.
+9. Feature guides, for the exact contract of any area you want to inspect closely.
+10. [ADR index](./adr/README.md) and [CHANGELOG](../CHANGELOG.md) — why the architecture is what it is, and what
+    changed.
 
 ## Documentation index
 
@@ -71,13 +73,14 @@ If you are assessing this delivery, read in this order:
 | [Contributing](../CONTRIBUTING.md) | Branch, commit, PR, review, migration, secret, evidence and human-gate rules |
 | [Postman package](../postman/README.md) | Ordered collection, placeholder-only environment, preconditions, GUI and Newman execution, secret-hygiene gate, known limits |
 
-### Pending — owned by a later subtask
+### Demonstration and assessment
 
-These artifacts **do not exist yet** and are listed only so the navigation is stable when they land. They are not part
-of this delivery and must not be described as complete:
-
-- Demo guide — **PENDING** (owned by IJPC-177).
-- Presentation source — **PENDING** (owned by IJPC-177).
+| Document | Contents |
+| --- | --- |
+| [Demo guide](./Demo-Guide.md) | The authoritative demonstration procedure: preparation, the 28-step canonical flow, the human-gated tampering scenarios, the destructive reset, the semi-automated Postman alternative, failure recovery |
+| [Reviewer checklist](./Reviewer-Checklist.md) | Self-service assessment path in 20–30 minutes: clone, environment, Maven gate, coverage, Compose health, OpenAPI, workflow, security examples, ITS mapping, release artifacts |
+| [Presentation source](../presentation/ProofChain.md) | 12-slide Markdown/Mermaid deck source; the Java build has no presentation dependency and no exported deck is tracked |
+| [Demo scripts](../scripts/demo/demo-preflight.sh) | `demo-preflight.sh` (safe startup and fixtures), `demo-reset.sh` (explicitly destructive, scoped and confirmed), `demo-smoke.sh` (Postman/Newman wrapper) |
 
 ## Codebase overview
 
@@ -122,6 +125,8 @@ through Surefire; `*IT.java` suites use PostgreSQL Testcontainers through Failsa
 │   ├── Custody-Events.md         # custody-event chain, protocol and verification
 │   ├── Operational-Custody-Workflows.md  # the five operational commands
 │   ├── Database-Schema-Lifecycle.md      # certified baselines and recovery runbook
+│   ├── Demo-Guide.md             # the authoritative demonstration procedure
+│   ├── Reviewer-Checklist.md     # 20-30 minute self-service assessment path
 │   ├── adr/                      # ADR-001 .. ADR-008 and the index
 │   ├── certification/            # Sprint 5 certification record
 │   └── release/1.0.0/            # security, dependency and performance review
@@ -136,6 +141,8 @@ through Surefire; `*IT.java` suites use PostgreSQL Testcontainers through Failsa
 │   └── logback-spring.xml        # console and AUTH_AUDIT destinations
 ├── src/test/                     # fast and Testcontainers-backed tests
 ├── postman/                      # collection, placeholder environment, guide
+├── presentation/ProofChain.md    # 12-slide Markdown/Mermaid deck source
+├── scripts/demo/                 # preflight, destructive reset, Newman smoke wrapper
 ├── Dockerfile                    # multi-stage image, non-root runtime stage
 ├── docker/                       # image build and runtime helper scripts
 ├── compose.yml                   # PostgreSQL and ProofChain services
