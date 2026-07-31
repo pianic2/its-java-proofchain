@@ -19,8 +19,9 @@ The recommended path is:
 7. Read [Custody Events](./Custody-Events.md) for the custody-event model, canonical hashing protocol, append-only chain, timeline and detail APIs, and chain verification.
 8. Read [Operational Custody Workflows](./Operational-Custody-Workflows.md) for transfer, metadata update, file-integrity verification, sealing, release, the authorization matrix, the lifecycle graph, and the locking and concurrency contract.
 9. Read [Container operations](./Operations.md) for the Docker Compose runtime: image, non-root identity, read-only root filesystem, volumes, health contract, and the deterministic operational commands.
-10. Consult the [ADR index](./adr/README.md) for the decisions behind the implemented architecture.
-11. Use the test links in each feature guide as the current executable testing reference. A separate testing guide has not been added yet.
+10. Read [Database schema lifecycle](./Database-Schema-Lifecycle.md) for the certified baseline matrix, the supported upgrade paths, the failure modes, and the manual recovery runbook.
+11. Consult the [ADR index](./adr/README.md) for the decisions behind the implemented architecture.
+12. Use the test links in each feature guide as the current executable testing reference. A separate testing guide has not been added yet.
 
 ## Documentation index
 
@@ -32,6 +33,7 @@ The recommended path is:
 - [Custody Events](./Custody-Events.md) — event model, typed payloads, canonical JSON and hash chain, reproducible fixed vector, timeline and detail APIs, and chain verification.
 - [Operational Custody Workflows](./Operational-Custody-Workflows.md) — transfer, metadata update, file-integrity verification, sealing, release, authorization matrix, lifecycle graph, locking, concurrency, and Problem Details.
 - [Container operations](./Operations.md) — image build, non-root runtime, read-only root filesystem, named volumes, health and readiness contract, and the build, start, inspect, restart, shutdown, and destructive reset commands.
+- [Database schema lifecycle](./Database-Schema-Lifecycle.md) — certified baseline matrix, recorded checksums, clean creation, supported upgrade paths, failure modes, and the manual recovery runbook.
 - [Architecture Decision Records](./adr/README.md) — accepted project, Sprint 1, Sprint 2, Sprint 3, Sprint 4, and Sprint 5 architectural decisions.
 - [Database migrations](../src/main/resources/db/migration/README.md) — rules for Flyway-managed schema evolution.
 - [Project README](../README.md) — prerequisites, local startup, public API entry points, and the canonical Maven command.
@@ -59,6 +61,7 @@ Flyway is the schema authority; Hibernate validates rather than creates the sche
 │   ├── Custody-Events.md         # custody-event chain, protocol, and verification guide
 │   ├── Operational-Custody-Workflows.md  # Sprint 5 transfer, metadata, integrity, seal, release guide
 │   ├── Operations.md             # Docker Compose runtime, health contract, operational commands
+│   ├── Database-Schema-Lifecycle.md  # certified baselines, upgrade paths, failure and recovery runbook
 │   └── adr/                      # accepted architecture decisions
 ├── src/main/java/it/itsprodigi/proofchain/
 │   ├── auth/                     # login, JWT, request authentication, audit events

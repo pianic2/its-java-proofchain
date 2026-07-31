@@ -127,7 +127,7 @@ src/main/java/it/itsprodigi/proofchain/
 └── common/               # shared configuration and cross-cutting contracts
 ```
 
-Database migrations live under `src/main/resources/db/migration`. Tests mirror the application package structure; integration tests use the `*IT.java` suffix. The container runtime lives in `Dockerfile`, `compose.yml` and the helper scripts under `docker/`.
+Database migrations live under `src/main/resources/db/migration`; they are the official SQL creation scripts of the delivery, and their rules and certified lifecycle are documented in the [migration guide](./src/main/resources/db/migration/README.md) and the [schema lifecycle guide](./docs/Database-Schema-Lifecycle.md). Tests mirror the application package structure; integration tests use the `*IT.java` suffix. The container runtime lives in `Dockerfile`, `compose.yml` and the helper scripts under `docker/`.
 
 ## Documentation
 
@@ -141,6 +141,7 @@ Start with the [technical documentation home](./docs/README.md), then follow the
 - [Custody Events](./docs/Custody-Events.md) — custody-event model, typed payloads, canonical hash chain, timeline and detail APIs, and chain verification.
 - [Operational Custody Workflows](./docs/Operational-Custody-Workflows.md) — transfer, metadata update, file-integrity verification, sealing, release, authorization matrix, lifecycle graph, locking, and concurrency.
 - [Container operations](./docs/Operations.md) — Docker Compose runtime, image layout, non-root and read-only guarantees, named volumes, health and readiness contract, and operational commands.
+- [Database schema lifecycle](./docs/Database-Schema-Lifecycle.md) — certified baseline matrix, recorded checksums, clean database creation, supported upgrade paths, failure modes, and manual recovery.
 - [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
 - [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
 - [MIT license](./LICENSE) — project licensing terms.
