@@ -23,7 +23,7 @@ Java 25 is the canonical project runtime and build baseline. The application is 
 
 ## Prerequisites
 
-Install Java 25 and Docker Engine with Docker Compose v2 support. Docker must be able to run `postgres:18.4-trixie`.
+Install Java 25 and Docker Engine with Docker Compose v2 support. Docker must be able to run `postgres:18.4-trixie`, `eclipse-temurin:25-jdk` and `eclipse-temurin:25-jre`.
 
 ## Local setup
 
@@ -53,20 +53,35 @@ The application uses externalized Spring configuration; it does not read environ
 
 Configuration is bound through validated configuration properties and the application fails to start — it never degrades — when the JWT secret is missing, malformed or weaker than 32 bytes, when the token TTL is not positive, when the password policy or BCrypt strength is invalid, when a runtime profile has no datasource credentials, when the storage root is unusable, or when a request-size, timeout or CORS value is invalid. No secret is ever generated or defaulted.
 
-## Database startup
+## Container startup
 
-Start and inspect the local PostgreSQL service with:
+The whole backend runs under Docker Compose: PostgreSQL plus the application image, from a clean clone.
 
 ```bash
+docker compose build
 docker compose up -d
+docker compose ps
+curl -s http://localhost:8080/actuator/health/readiness
+```
+
+Compose waits for the PostgreSQL healthcheck before it creates the application container, so no fixed sleep is needed anywhere. The application runs as the dedicated non-root user `10001:10001` on a read-only root filesystem, with the evidence volume and a bounded `tmpfs` as its only writable paths, and stores evidence under `/var/lib/proofchain/storage` on a named volume separate from the database volume. `${APP_PORT}` and `${POSTGRES_PORT}` select the published host ports.
+
+Stop the stack with `docker compose stop`, or remove containers and network while keeping both volumes with `docker compose down --remove-orphans`. Use `docker compose down -v --remove-orphans` only when intentionally destroying the demo data: it deletes the evidence volume and the database volume permanently. The complete operational guide — image layout, health and readiness contract, restart persistence, shutdown behaviour and the destructive reset — is in [container operations](./docs/Operations.md).
+
+## Database startup for host execution
+
+To run the application on the host instead, start only the database service:
+
+```bash
+docker compose up -d postgres
 docker compose ps
 ```
 
-Stop it with `docker compose down --remove-orphans`. Use `docker compose down -v --remove-orphans` only when intentionally removing local database data. Flyway owns the schema lifecycle and starts with `baseline-on-migrate=false`; do not use Hibernate DDL generation or ad-hoc schema changes.
+Flyway owns the schema lifecycle and starts with `baseline-on-migrate=false`; do not use Hibernate DDL generation or ad-hoc schema changes.
 
 ## Application startup
 
-Exactly three profiles exist: `local` for host execution, `container` for Docker Compose execution, and `test` for automated tests. `local` is enabled by default; select another one with `SPRING_PROFILES_ACTIVE`. After PostgreSQL is running, start the application with:
+Exactly three profiles exist: `local` for host execution, `container` for Docker Compose execution, and `test` for automated tests. `local` is enabled by default and `container` is activated by the application image itself; select another one with `SPRING_PROFILES_ACTIVE`. After PostgreSQL is running, start the application on the host with:
 
 ```bash
 ./mvnw spring-boot:run
@@ -112,7 +127,7 @@ src/main/java/it/itsprodigi/proofchain/
 └── common/               # shared configuration and cross-cutting contracts
 ```
 
-Database migrations live under `src/main/resources/db/migration`. Tests mirror the application package structure; integration tests use the `*IT.java` suffix.
+Database migrations live under `src/main/resources/db/migration`. Tests mirror the application package structure; integration tests use the `*IT.java` suffix. The container runtime lives in `Dockerfile`, `compose.yml` and the helper scripts under `docker/`.
 
 ## Documentation
 
@@ -125,6 +140,7 @@ Start with the [technical documentation home](./docs/README.md), then follow the
 - [Digital Evidence](./docs/DigitalEvidence.md) — domain metadata, registration, integrity hashes, filesystem storage, read APIs, and failure contracts.
 - [Custody Events](./docs/Custody-Events.md) — custody-event model, typed payloads, canonical hash chain, timeline and detail APIs, and chain verification.
 - [Operational Custody Workflows](./docs/Operational-Custody-Workflows.md) — transfer, metadata update, file-integrity verification, sealing, release, authorization matrix, lifecycle graph, locking, and concurrency.
+- [Container operations](./docs/Operations.md) — Docker Compose runtime, image layout, non-root and read-only guarantees, named volumes, health and readiness contract, and operational commands.
 - [Architecture Decision Records](./docs/adr/README.md) — accepted decisions that govern the implemented architecture.
 - [Contributing rules](./CONTRIBUTING.md) — repository workflow, quality checks, and evidence expectations.
 - [MIT license](./LICENSE) — project licensing terms.

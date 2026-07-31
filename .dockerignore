@@ -1,0 +1,18 @@
+# The build context is limited to what the multi-stage build actually needs, so
+# no local credential, log, working file or build output can reach the daemon or
+# end up in an image layer by accident. Only mvnw, .mvn, pom.xml, src and docker
+# are consumed by the Dockerfile.
+.env
+.env.*
+*.log
+storage/
+target/
+.git/
+.github/
+.idea/
+.vscode/
+docs/
+*.md
+compose.yml
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar

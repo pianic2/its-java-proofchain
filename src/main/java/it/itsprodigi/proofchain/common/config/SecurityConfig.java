@@ -30,6 +30,16 @@ public class SecurityConfig {
     private static final Duration CORS_MAX_AGE = Duration.ofMinutes(30);
 
     /**
+     * The container orchestrator must read health before any operator exists, so exactly these three probes are
+     * unauthenticated. They are enumerated one by one instead of {@code /actuator/**} so that any endpoint added later
+     * is authenticated by default rather than published by accident. The responses carry a bare status: detail and
+     * component rendering are switched off in {@code application.yml}, and no other endpoint is exposed at all.
+     */
+    public static final String[] PUBLIC_HEALTH_PROBES = {
+        "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness"
+    };
+
+    /**
      * Cross-origin policy. With the frozen empty allowlist the source resolves to {@code null} for every request, so no
      * CORS header is written and browsers deny the exchange. Only explicit, non-wildcard origins can ever be returned,
      * and credentials are never allowed because the API authenticates with a bearer token.
@@ -89,6 +99,8 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR)
                         .permitAll()
                         .requestMatchers("/api/v1/auth/login", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
+                        .requestMatchers(PUBLIC_HEALTH_PROBES)
                         .permitAll()
                         .anyRequest()
                         .authenticated())

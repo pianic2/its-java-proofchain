@@ -1,7 +1,10 @@
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 target/
-storage/
+# Anchored to the repository root: this is the local evidence directory created by the `local`
+# profile. Unanchored, the pattern also matched the `evidence/storage` source package and silently
+# excluded every new file added to it.
+/storage/
 .env
 *.log
 .idea/

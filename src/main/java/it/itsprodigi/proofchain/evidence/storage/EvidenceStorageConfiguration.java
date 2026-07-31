@@ -13,4 +13,13 @@ public class EvidenceStorageConfiguration {
     EvidenceStoragePort evidenceStorage(EvidenceStorageProperties properties) {
         return new FileSystemEvidenceStorage(properties);
     }
+
+    /**
+     * The bean name is contractual: the health registry derives the contributor name {@code evidenceStorage} from it,
+     * and the readiness group declared in {@code application.yml} refers to exactly that name.
+     */
+    @Bean
+    EvidenceStorageHealthIndicator evidenceStorageHealthIndicator(EvidenceStorageProperties properties) {
+        return new EvidenceStorageHealthIndicator(properties);
+    }
 }

@@ -55,6 +55,44 @@ server:
     connection-timeout: ${PROOFCHAIN_HTTP_CONNECTION_TIMEOUT:20s}
     keep-alive-timeout: ${PROOFCHAIN_HTTP_KEEP_ALIVE_TIMEOUT:20s}
 
+management:
+  endpoints:
+    access:
+      # Nothing is reachable unless it is granted below, and nothing may ever exceed read-only access.
+      default: none
+      max-permitted: read-only
+    web:
+      base-path: /actuator
+      # The actuator index would enumerate the available links; the runtime advertises nothing.
+      discovery:
+        enabled: false
+      exposure:
+        include: health
+  endpoint:
+    health:
+      access: read-only
+      # The public response is a bare status. No component, version, driver, URL or path is ever rendered.
+      show-details: never
+      show-components: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+          show-details: never
+          show-components: never
+        readiness:
+          # Readiness is green only once the context is ready, PostgreSQL answers and the evidence root is usable.
+          include: readinessState,db,evidenceStorage
+          show-details: never
+          show-components: never
+  health:
+    # Only the two contributors readiness depends on exist; every other auto-configured indicator stays off.
+    defaults:
+      enabled: false
+    db:
+      enabled: true
+
 proofchain:
   jwt:
     secret: ${PROOFCHAIN_JWT_SECRET:}
