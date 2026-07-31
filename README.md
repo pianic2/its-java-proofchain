@@ -2,7 +2,7 @@
 
 ## Project overview
 
-ProofChain is a time-bounded ITS project implemented as a Spring Boot modular monolith. It provides a reviewable foundation for custody cases and the registration, integrity hashing, discovery, and retrieval of digital evidence.
+ProofChain is a time-bounded ITS project implemented as a Spring Boot modular monolith. The released baseline is version `1.0.0`. It provides a reviewable foundation for custody cases and the registration, integrity hashing, discovery, and retrieval of digital evidence.
 
 ## MVP boundaries
 
@@ -49,7 +49,9 @@ source .env
 set +a
 ```
 
-The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The evidence file limit defaults to `50MB` through `PROOFCHAIN_MAX_FILE_SIZE`; the complete multipart request defaults to `51MB` through `PROOFCHAIN_MAX_REQUEST_SIZE` so JSON metadata and framing have bounded overhead. JWT and optional bootstrap-admin settings are listed in [.env.example](./.env.example) and described in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
+The application uses externalized Spring configuration; it does not read environment variables directly from application code. `PROOFCHAIN_STORAGE_ROOT` defaults to `./storage`. The evidence file limit defaults to `50MB` through `PROOFCHAIN_MAX_FILE_SIZE`; the complete multipart request defaults to `51MB` through `PROOFCHAIN_MAX_REQUEST_SIZE` so JSON metadata and framing have bounded overhead. Every supported variable is listed with a safe placeholder in [.env.example](./.env.example); the complete baseline — profiles, secrets, startup validation, request limits, timeouts, and CORS — is documented in the [configuration baseline](./docs/Configuration.md), and the authentication rationale in [ADR-003](./docs/adr/ADR-003-authentication-and-operator-security.md).
+
+Configuration is bound through validated configuration properties and the application fails to start — it never degrades — when the JWT secret is missing, malformed or weaker than 32 bytes, when the token TTL is not positive, when the password policy or BCrypt strength is invalid, when a runtime profile has no datasource credentials, when the storage root is unusable, or when a request-size, timeout or CORS value is invalid. No secret is ever generated or defaulted.
 
 ## Database startup
 
@@ -64,7 +66,7 @@ Stop it with `docker compose down --remove-orphans`. Use `docker compose down -v
 
 ## Application startup
 
-The `local` Spring profile is enabled by default. After PostgreSQL is running, start the application with:
+Exactly three profiles exist: `local` for host execution, `container` for Docker Compose execution, and `test` for automated tests. `local` is enabled by default; select another one with `SPRING_PROFILES_ACTIVE`. After PostgreSQL is running, start the application with:
 
 ```bash
 ./mvnw spring-boot:run
@@ -116,6 +118,7 @@ Database migrations live under `src/main/resources/db/migration`. Tests mirror t
 
 Start with the [technical documentation home](./docs/README.md), then follow the feature guides for implementation details:
 
+- [Configuration baseline](./docs/Configuration.md) — release version, the three profiles, secrets, fail-fast startup validation, request limits, timeouts, and CORS.
 - [Authentication](./docs/Auth.md) — login, JWT validation, database-backed request authentication, password controls, and audit events.
 - [Operator Management](./docs/Operators.md) — operator data, ADMIN endpoints, persistence, and concurrency invariants.
 - [Custody Cases](./docs/CustodyCases.md) — case lifecycle, contextual membership, REST contracts, persistence, and concurrency.

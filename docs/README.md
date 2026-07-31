@@ -11,17 +11,19 @@ This documentation describes the code that is present in the repository. The cur
 The recommended path is:
 
 1. Start with the [project README](../README.md) to set up the application and run the quality gate.
-2. Read [Authentication](./Auth.md) to understand login, JWT validation, database-backed request authentication, and security errors.
-3. Continue with [Operator Management](./Operators.md) for the persisted identity model, ADMIN API, and concurrency invariants.
-4. Read [Custody Cases](./CustodyCases.md) for case metadata, lifecycle, membership, contextual authorization, and concurrency protection.
-5. Read [Digital Evidence](./DigitalEvidence.md) for typed metadata, registration, integrity hashes, filesystem storage, and read/download behavior.
-6. Read [Custody Events](./Custody-Events.md) for the custody-event model, canonical hashing protocol, append-only chain, timeline and detail APIs, and chain verification.
-7. Read [Operational Custody Workflows](./Operational-Custody-Workflows.md) for transfer, metadata update, file-integrity verification, sealing, release, the authorization matrix, the lifecycle graph, and the locking and concurrency contract.
-8. Consult the [ADR index](./adr/README.md) for the decisions behind the implemented architecture.
-9. Use the test links in each feature guide as the current executable testing reference. A separate testing guide has not been added yet.
+2. Read the [configuration baseline](./Configuration.md) for the release version, the three supported profiles, and the fail-fast startup contract.
+3. Read [Authentication](./Auth.md) to understand login, JWT validation, database-backed request authentication, and security errors.
+4. Continue with [Operator Management](./Operators.md) for the persisted identity model, ADMIN API, and concurrency invariants.
+5. Read [Custody Cases](./CustodyCases.md) for case metadata, lifecycle, membership, contextual authorization, and concurrency protection.
+6. Read [Digital Evidence](./DigitalEvidence.md) for typed metadata, registration, integrity hashes, filesystem storage, and read/download behavior.
+7. Read [Custody Events](./Custody-Events.md) for the custody-event model, canonical hashing protocol, append-only chain, timeline and detail APIs, and chain verification.
+8. Read [Operational Custody Workflows](./Operational-Custody-Workflows.md) for transfer, metadata update, file-integrity verification, sealing, release, the authorization matrix, the lifecycle graph, and the locking and concurrency contract.
+9. Consult the [ADR index](./adr/README.md) for the decisions behind the implemented architecture.
+10. Use the test links in each feature guide as the current executable testing reference. A separate testing guide has not been added yet.
 
 ## Documentation index
 
+- [Configuration baseline](./Configuration.md) — release version, the three profiles, secrets, startup validation, request limits, timeouts, and CORS.
 - [Authentication](./Auth.md) — login, JWTs, authenticated requests, password controls, bootstrap, audit logging, and security tests.
 - [Operator Management](./Operators.md) — operator data, roles and statuses, administrative endpoints, persistence, and concurrency protection.
 - [Custody Cases](./CustodyCases.md) — case metadata, lifecycle, contextual membership, REST contracts, persistence, and concurrency.
@@ -47,6 +49,7 @@ Flyway is the schema authority; Hibernate validates rather than creates the sche
 .
 ├── docs/
 │   ├── README.md                 # documentation home
+│   ├── Configuration.md          # release baseline, profiles, and startup validation
 │   ├── Auth.md                   # authentication guide
 │   ├── Operators.md              # operator-management guide
 │   ├── CustodyCases.md           # custody-case and membership guide
@@ -64,7 +67,8 @@ Flyway is the schema authority; Hibernate validates rather than creates the sche
 ├── src/main/resources/
 │   ├── db/migration/             # immutable Flyway migrations
 │   ├── application.yml           # shared externalized configuration
-│   ├── application-local.yml     # local PostgreSQL profile
+│   ├── application-local.yml     # host-execution profile
+│   ├── application-container.yml # Docker Compose profile
 │   └── logback-spring.xml        # console and AUTH_AUDIT destinations
 ├── src/test/                     # fast and Testcontainers-backed tests
 ├── compose.yml                   # local PostgreSQL service

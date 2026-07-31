@@ -8,6 +8,9 @@ spring:
   mvc:
     format:
       date-time: iso
+  lifecycle:
+    # Graceful shutdown is bounded: in-flight work gets a finite grace period, never an unlimited one.
+    timeout-per-shutdown-phase: ${PROOFCHAIN_SHUTDOWN_TIMEOUT:30s}
   servlet:
     multipart:
       max-file-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}
@@ -16,6 +19,10 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: false
+    # Flyway is the only schema authority: a checksum or version drift must stop the application.
+    validate-on-migrate: true
+    out-of-order: false
+    clean-disabled: true
     locations: classpath:db/migration
   jpa:
     hibernate:
@@ -25,11 +32,36 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  datasource:
+    hikari:
+      # Connection acquisition is bounded in milliseconds; exhaustion fails the request, it never blocks forever.
+      connection-timeout: ${PROOFCHAIN_DB_CONNECTION_TIMEOUT_MS:10000}
+      validation-timeout: ${PROOFCHAIN_DB_VALIDATION_TIMEOUT_MS:5000}
+      # 1 ms means "prove one connection at startup, then fail closed"; a negative value would start degraded.
+      initialization-fail-timeout: ${PROOFCHAIN_DB_STARTUP_TIMEOUT_MS:1}
+      # Every pooled connection gets a bounded PostgreSQL lock wait instead of an unbounded one. No retry is added.
+      connection-init-sql: SET lock_timeout = '${PROOFCHAIN_DB_LOCK_TIMEOUT:10s}'
+
+server:
+  shutdown: graceful
+  max-http-request-header-size: ${PROOFCHAIN_MAX_HTTP_HEADER_SIZE:16KB}
+  tomcat:
+    # Non-file request limits. The application exposes no form endpoint, so the form budget stays small.
+    max-http-form-post-size: ${PROOFCHAIN_MAX_FORM_POST_SIZE:256KB}
+    max-swallow-size: ${PROOFCHAIN_MAX_SWALLOW_SIZE:2MB}
+    max-parameter-count: ${PROOFCHAIN_MAX_PARAMETER_COUNT:256}
+    max-part-count: ${PROOFCHAIN_MAX_PART_COUNT:16}
+    max-part-header-size: ${PROOFCHAIN_MAX_PART_HEADER_SIZE:8KB}
+    connection-timeout: ${PROOFCHAIN_HTTP_CONNECTION_TIMEOUT:20s}
+    keep-alive-timeout: ${PROOFCHAIN_HTTP_KEEP_ALIVE_TIMEOUT:20s}
 
 proofchain:
   jwt:
     secret: ${PROOFCHAIN_JWT_SECRET:}
     access-token-ttl: ${PROOFCHAIN_JWT_ACCESS_TOKEN_TTL:PT30M}
+  cors:
+    # Default deny. An empty allowlist emits no CORS header at all, and `*` is rejected at startup.
+    allowed-origins: ${PROOFCHAIN_CORS_ALLOWED_ORIGINS:}
   storage:
     root: ${PROOFCHAIN_STORAGE_ROOT:./storage}
     max-file-size: ${PROOFCHAIN_MAX_FILE_SIZE:50MB}

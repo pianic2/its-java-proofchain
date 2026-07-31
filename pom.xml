@@ -13,7 +13,7 @@
 
     <groupId>it.itsprodigi</groupId>
     <artifactId>proofchain</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>proofchain</name>
     <description>ProofChain</description>
 

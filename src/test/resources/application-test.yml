@@ -8,7 +8,10 @@ spring:
     password: test
 proofchain:
   jwt:
-    secret: VGhpc0lzQVNha2VOb25Qcm9kdWN0aW9uU2VjcmV0S2V5MTIzNDU2Nzg=
+    # Test-scoped only. Every test context generates a fresh 48-byte secret: two `random.value` fragments are
+    # 32 lowercase hexadecimal characters each, so the concatenation is valid standard Base64. No secret is
+    # committed to the repository and no test secret can ever be reused by a running deployment.
+    secret: ${random.value}${random.value}
     access-token-ttl: PT30M
   password:
     bcrypt-strength: 4
