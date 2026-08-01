@@ -14,14 +14,17 @@ consensus. No SLA, capacity or production certification is claimed.
 | Item | Value |
 | --- | --- |
 | Repository | `pianic2/its-java-proofchain` |
+| Default branch | `main` — contains Sprint 3 through Sprint 6 |
 | Delivery branch | `ijpc-8-sprint-6-final-delivery` |
-| Certified commit | `a0a1c45ec3998eacf1a0c3505ada5fb5d0a60b74` |
 | Certification anchor commit | `739d980c6256b4b7b321424741aa87808b7d3277` |
 | Tag `uf14-final-2026` | **not created** — see "Delivery status" |
 | GitHub Release | **not published** — see "Delivery status" |
 
-> **Read the delivery branch, not `main`.** At the time of writing, `main` still points at an
-> earlier commit and does not contain Sprint 3 through Sprint 6.
+> **`main` carries the delivery.** Pull request #28 merged the delivery branch, so `main` contains
+> the complete Sprint 3 through Sprint 6 work and builds green. Three later documentation commits —
+> the Italian delivery message, the append-only trigger correction and this review record — sit on
+> the delivery branch and are not yet on `main`. Read `main` for the code; read the delivery branch
+> if you want those three documents as well.
 
 ## Requirements
 
