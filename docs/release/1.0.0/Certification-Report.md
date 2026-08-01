@@ -165,9 +165,12 @@ acceptance criterion of IJPC-174 that is not met, and it remains open.
 
 1. **OWASP Dependency-Check has never been executed** against this codebase. Until it is, the
    release cannot claim a clean dependency posture.
-2. **The independent Sprint 4 AI review never returned findings.** It was launched twice and both
-   runs ended without a report. Consequently IJPC-160, IJPC-161, IJPC-162 and the IJPC-6 container
-   were deliberately **not** transitioned to Done.
+2. **The independent Sprint 4 AI review completed on the third attempt** and returned a verdict of
+   *fit to certify*. Its one MAJOR finding — ADR-006 and the custody event guide claimed the
+   append-only trigger "rejects every mutation", which is not true of `TRUNCATE` — is resolved in
+   commit `b69325e` by correcting the claim. Six MINOR/NOTE findings were accepted without code
+   change. Details in `AI-Validation-Record.md`. The corresponding Jira issues can now be
+   transitioned; that step still requires a connector-enabled session.
 3. **Jira is unreachable from the delivery sessions.** Every task comment and transition is queued
    in `/tmp/proofchain-jira-pending.md` and awaits a connector-enabled session.
 4. The known functional limitations are listed in `Known-Limitations.md` and are not repeated here.

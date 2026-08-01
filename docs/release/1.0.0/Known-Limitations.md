@@ -48,12 +48,23 @@ force a green run. The exact command a reviewer must execute on a network where 
 verbatim in [the certification report](./Certification-Report.md) and in
 [the security review §3](./Security-And-Dependency-Review.md).
 
-### 1.4 The Sprint 4 independent AI review never returned findings
+### 1.4 The Sprint 4 independent AI review is complete — resolved
 
-The independent AI review of Sprint 4 was launched **twice** and returned no findings on either attempt. As a direct
-consequence, **IJPC-160, IJPC-161, IJPC-162 and IJPC-6 were never moved to Done** and remain open. The Sprint 4
-functional content is merged and is exercised by the test suite, but the independent-review gate for those specific
-tasks was never satisfied. This is an open item for the Project Owner, not something this certification can close.
+The independent AI review of Sprint 4 was launched three times: the first two runs were terminated by resource limits
+before producing anything, and the third completed with a verdict of **fit to certify**.
+
+Its single MAJOR finding was a documentation defect, not a code defect: ADR-006 and the custody event guide both
+claimed the append-only trigger "rejects every mutation", which is untrue of `TRUNCATE` because PostgreSQL never fires
+row-level triggers for it. Corrected in commit `b69325e`; the schema is unchanged, because `TRUNCATE` is the mechanism
+the disposable test databases rely on once `DELETE` is blocked, and erasing the table that way is still detected by the
+count and head anchor on `digital_evidence`.
+
+Six further MINOR and NOTE findings were accepted without code change and are listed in
+[the AI validation record](./AI-Validation-Record.md). None is a correctness or security defect.
+
+The review gate for **IJPC-160, IJPC-161, IJPC-162 and IJPC-6** is therefore satisfied. Those issues had been left open
+precisely because the gate was unmet; transitioning them is now a Jira action, pending a connector-enabled session
+(see §1.5).
 
 ### 1.5 Jira is unreachable from the certification session
 

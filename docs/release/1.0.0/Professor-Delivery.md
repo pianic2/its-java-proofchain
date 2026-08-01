@@ -198,9 +198,10 @@ autonomous AI delivery for the sessions that produced it.
 Three items remain open and are stated here rather than left to be discovered:
 
 1. **OWASP Dependency-Check has never run** (see above).
-2. **The independent Sprint 4 AI review never returned findings.** It was launched twice and both
-   attempts ended without a report. Because those findings were never read, the corresponding Jira
-   issues were deliberately **not** marked complete.
+2. **The independent Sprint 4 AI review is complete** and returned *fit to certify*. Its one MAJOR
+   finding was a documentation claim that overstated the database append-only guarantee; it is
+   corrected. Six lesser findings were accepted without code change. See
+   [AI-Validation-Record.md](./AI-Validation-Record.md).
 3. **The tag `uf14-final-2026`, the GitHub Release and the merge into `main` have not been
    performed.** The delivery sessions had no GitHub write connector. The code, the tests and the
    documentation are complete and pushed on `ijpc-8-sprint-6-final-delivery`; the publication steps

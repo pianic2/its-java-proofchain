@@ -57,14 +57,68 @@ This caught several things a report-only workflow would have missed, listed belo
   Production code was already correct.
 - An unanchored `.gitignore` rule silently excluded new files under the evidence storage package.
 
-## Incomplete AI validation
+## Independent Sprint 4 review — completed on the third attempt
 
-**The independent Sprint 4 review never returned findings.** A reviewer agent was launched twice
-over the Sprint 4 slice (IJPC-157 through IJPC-162) and both runs ended without producing a report.
+The first two reviewer runs over the Sprint 4 slice (IJPC-157 through IJPC-162) were terminated by
+resource limits before producing anything. The third succeeded after the brief was restructured to
+require a findings list even if the analysis had to be truncated: an incomplete list is useful, an
+aborted perfect one is not.
 
-Because those findings were never read, IJPC-160, IJPC-161, IJPC-162 and the IJPC-6 container were
-deliberately left un-transitioned. Marking them complete would have asserted a review that did not
-happen. This is an open item, not an oversight.
+**Verdict: fit to certify**, subject to resolving the one MAJOR below.
+
+### MAJOR — the documented append-only guarantee overstated what the trigger does
+
+`custody_events_append_only` is a `BEFORE UPDATE OR DELETE` **row-level** trigger. PostgreSQL never
+fires row-level triggers for `TRUNCATE`, and no foreign key points into `custody_events`, so a
+single `TRUNCATE` from the owning role removes every custody event and raises nothing. ADR-006 and
+the custody event guide both claimed the trigger "rejects every mutation".
+
+Resolved in commit `b69325e`, by correcting the claim rather than changing the schema. Adding a
+statement-level `BEFORE TRUNCATE` guard was attempted first and rejected by the build twice: the
+migration governance test flagged the new file as an unreviewed inventory change, and once
+registered, 263 integration tests failed — `TRUNCATE` is how the disposable test databases reset
+`custody_events` now that `DELETE` is blocked. The gap is the escape hatch the suite depends on, not
+an oversight. Both documents now state what actually holds, including that the database layer
+provides tamper-evidence rather than tamper-proofing.
+
+### Findings accepted without code change
+
+- **MINOR** — chain verification holds the `PESSIMISTIC_READ` lock across an unbounded, unpaged scan
+  of the whole chain, so a very long chain blocks concurrent appends and pressures the heap.
+- **MINOR** — `CustodyEventMapper.toSummary` decodes and re-canonicalizes a payload it then
+  discards, so one corrupt payload makes an entire timeline page return 500 instead of isolating the
+  damaged event.
+- **MINOR** — the V6 backfill aborts on the first anomalous legacy row rather than collecting all of
+  them, so an upgrade against dirty legacy data is diagnosed one row per restart.
+- **NOTE** — `findByIdForCustodyEventAppend` does not `refresh` an already-managed entity;
+  unreachable in the delivered code and fails safe through the sequence unique constraint.
+- **NOTE** — V6 uses a random UUID for the backfilled event id, so two independently migrated copies
+  of the same Sprint 3 data get different genesis hashes. Verification stays reproducible because a
+  third party rehashes the stored id.
+- **NOTE** — `CustodyEvent.validUuidV4` checks the UUID version but not the variant, unlike
+  `ProtocolValidation.uuidV4`. No reachable failure.
+
+None is a correctness or security defect. With the delivery already merged, changing working code
+for non-essential improvements would add risk without adding a guarantee.
+
+### What the review confirmed sound
+
+- **No pair of distinct events canonicalizes to the same bytes.** Field order is strictly ascending
+  lexicographic at every nesting level, every value is written as an escaped JSON token rather than
+  concatenated, the payload is a delimited nested object, absent optionals are explicit `null`,
+  timestamps use `Locale.ROOT` and UTC with exactly six fraction digits, and unpaired surrogates are
+  rejected. This is the property the entire evidentiary value of the system rests on.
+- Chain integrity: zero-hash genesis, sequence from 1, `previousHash` linkage, and the per-evidence
+  unique constraints make a duplicate sequence number or event hash impossible. Tail deletion is
+  caught by the external anchor.
+- All three appender entry points use `MANDATORY` propagation; both the append and verification
+  paths lock the evidence row first, so there is no inconsistent lock ordering and no deadlock
+  potential between them.
+- `CustodyChainVerificationService` performs no writes — the accepted `readOnly` deviation is
+  functionally safe.
+- Anti-enumeration holds across all three routes: hidden and nonexistent evidence resolve
+  identically, and no response, Problem Detail or log line carries payload bodies, storage keys,
+  anchor internals or operator PII.
 
 Sprint 5 and Sprint 6 were verified task by task by the orchestrator as described above, but no
 separate cumulative independent reviewer completed a pass over either sprint as a whole.
