@@ -17,8 +17,9 @@ digitali sviluppato per l'unità formativa Java.
 **Branch:** `main`
 
 > Il merge è stato eseguito: `main` contiene l'intero lavoro degli Sprint 3–6 e la build è verde.
-> Il branch `ijpc-8-sprint-6-final-delivery` porta in più tre commit di sola documentazione, fra cui
-> questo stesso messaggio; il codice valutabile è interamente su `main`.
+> Il branch `ijpc-8-sprint-6-final-delivery` porta in più alcuni commit di sola documentazione, fra
+> cui questo stesso messaggio. Nessuna differenza di codice sorgente: il progetto valutabile è
+> interamente su `main`.
 
 ### Da dove iniziare
 
@@ -106,8 +107,8 @@ Prima di inviare il messaggio, verificare che questi punti siano ancora accurati
 
 - il merge su `main` è già avvenuto; se nel frattempo sono stati creati il tag `uf14-final-2026` e
   la GitHub Release, citarli qui;
-- i tre commit di sola documentazione rimasti sul branch di consegna vanno portati su `main` prima
-  di taggare, altrimenti il tag non includerà questo stesso messaggio;
+- i commit di sola documentazione rimasti sul branch di consegna vanno portati su `main` prima di
+  taggare, altrimenti il tag non includerà questo stesso messaggio;
 - se OWASP Dependency-Check è stato eseguito in una rete con accesso a NVD, sostituire il punto 2
   con l'esito reale;
 - il commit citato è quello certificato: se vengono aggiunti altri commit, aggiornarlo.

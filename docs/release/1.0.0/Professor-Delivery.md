@@ -21,10 +21,10 @@ consensus. No SLA, capacity or production certification is claimed.
 | GitHub Release | **not published** — see "Delivery status" |
 
 > **`main` carries the delivery.** Pull request #28 merged the delivery branch, so `main` contains
-> the complete Sprint 3 through Sprint 6 work and builds green. Three later documentation commits —
-> the Italian delivery message, the append-only trigger correction and this review record — sit on
-> the delivery branch and are not yet on `main`. Read `main` for the code; read the delivery branch
-> if you want those three documents as well.
+> the complete Sprint 3 through Sprint 6 work and builds green. A few later documentation-only
+> commits — the Italian delivery message, the append-only trigger correction and the Sprint 4 review
+> record — remain on the delivery branch. No source code differs between the two. Read `main` for
+> the assessable code; read the delivery branch for those documents as well.
 
 ## Requirements
 
